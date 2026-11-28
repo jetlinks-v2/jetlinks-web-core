@@ -3,6 +3,7 @@ import type { CapabilityContext, DataCapabilityProvider, DataSourceDefinition, D
 import type { VariableObjectSpec } from '../types/relation'
 import { getByPath } from '../data-capability/utils'
 import { objectCapabilitiesApi } from './api'
+import { objectDataAccess } from './dataAccess'
 import { objectCapabilityId, objectMembers, objectValueSchema, parseObjectCapabilityId, sameObjectMember } from './metadata'
 import type { ObjectCapabilityValue, ObjectFunctionMetadata, ObjectMember, ObjectReference } from './types'
 
@@ -36,7 +37,7 @@ async function targets(config: unknown, context: CapabilityContext, signal?: Abo
 function source(member: ObjectMember): DataSourceDefinition {
   return {
     id: objectCapabilityId(member.ref), kind: 'data-source', version: 1, name: member.name,
-    description: member.description, owner, modes: ['snapshot'], facets: { objectMember: member.ref },
+    description: member.description, owner, modes: objectDataAccess(member)?.history ? ['snapshot', 'page'] : ['snapshot'], facets: { objectMember: member.ref },
     querySchema: member.ref.kind === 'query' && (member.metadata as ObjectFunctionMetadata).inputs?.length ? inputSchema(member) : undefined,
     create: config => ({
       query<T>(request: DataSourceRequest, context: RuntimeContext) {
@@ -47,10 +48,21 @@ function source(member: ObjectMember): DataSourceDefinition {
           // Resolution is bounded at the original relation service. Sequential reads retain source backpressure.
           for (const object of resolved.objects) {
             if (object.type !== member.ref.type) throw new Error('所选数据不适用于当前对象')
-            const actual = objectMembers(object.type, await api.models(object.type, object.id, request.signal))
-              .find(value => sameObjectMember(value.ref, member.ref))
+            const actualMembers = objectMembers(object.type, await api.models(object.type, object.id, request.signal))
+            const actual = actualMembers.find(value => sameObjectMember(value.ref, member.ref))
             if (!actual) throw new Error('所选数据暂不可用')
-            const value = member.ref.kind === 'property'
+            const mode = request.query?.dataMode
+            const access = objectDataAccess(actual)
+            const command = mode === 'history' ? access?.history : mode === 'aggregate' ? access?.aggregate : undefined
+            if (mode && (!command || !actualMembers.some(value => value.ref.providerId === actual.ref.providerId &&
+              value.ref.kind === 'query' && value.ref.id === command))) throw new Error('所选数据能力暂不可用')
+            const value = mode
+              ? await api.command(object, actual.ref.providerId, command!, { query: {
+                from: request.query?.from, to: request.query?.to, interval: request.query?.interval,
+                aggregation: request.query?.aggregation, pageIndex: request.query?.pageIndex,
+                pageSize: request.query?.pageSize, property: actual.ref.id,
+              } }, true, request.signal)
+              : member.ref.kind === 'property'
               ? (await api.properties(object, member.ref.providerId, [member.ref.id], request.signal))[0]?.value
               : await api.command(object, member.ref.providerId, member.ref.id, request.query || {}, true, request.signal)
             values.push({ object, value, metadata: actual.metadata })

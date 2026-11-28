@@ -1,5 +1,5 @@
 <template>
-  <div ref="host" class="dashboard-grid" :class="{ 'dashboard-grid--initializing': !layoutReady }" @dragover="drag.onDragOver" @drop="drag.onDrop">
+  <div ref="host" class="dashboard-grid" :class="{ 'dashboard-grid--initializing': !layoutReady, 'dashboard-grid--static': !layoutEditable }" @dragover="drag.onDragOver" @drop="drag.onDrop">
     <GridLayout :key="geometryKey" ref="layoutRef" v-model:layout="layoutJSON" :col-num="settings.columns"
       :row-height="settings.rowHeight" :margin="settings.margin" :style="gridLayoutStyle"
       :is-draggable="layoutEditable" :is-resizable="layoutEditable" @layout-ready="finishInitialLayout">
@@ -30,7 +30,6 @@ const props = defineProps<{
   settings: DashboardGridSettings
   editable: boolean
   layoutEditable: boolean
-  embedded?: boolean
   dragging?: { type: string; gridItem?: Partial<DashboardGridItem> }
 }>()
 const emit = defineEmits<{
@@ -69,13 +68,12 @@ function updateWidth(width: number) {
 // GridLayout 自身会记录隐藏时的零宽度；缓存页恢复时在绘制前同步，避免从零宽度过渡。
 onActivated(() => updateWidth((layoutRef.value?.$el as HTMLElement | undefined)?.offsetWidth ?? 0))
 
-// Retain LoadingBoard's negative margins: the first/last cells align with the viewport edges.
+// Cancel the grid's own outer gutters; the host's flow root keeps vertical margins inside the canvas.
 const gridLayoutStyle = computed(() => ({
   marginLeft: `-${props.settings.margin[0]}px`,
   marginRight: `-${props.settings.margin[0]}px`,
-  // Embedded grids keep their vertical outer margins in normal page flow.
-  marginTop: props.embedded ? '0' : `-${props.settings.margin[1]}px`,
-  marginBottom: props.embedded ? '0' : `-${props.settings.margin[1]}px`,
+  marginTop: `-${props.settings.margin[1]}px`,
+  marginBottom: `-${props.settings.margin[1]}px`,
 }))
 const drag = useDashboardDrag({
   host, layoutRef, gridItemRefs, layout: layoutJSON,
@@ -101,8 +99,9 @@ async function onLayoutEnd() {
 </script>
 
 <style scoped lang="less">
-.dashboard-grid { position: relative; width: 100%; min-height: 100%; }
-.dashboard-grid--initializing :deep(.vue-grid-item) { transition:none; }
+.dashboard-grid { display: flow-root; position: relative; width: 100%; min-height: 100%; }
+.dashboard-grid--initializing :deep(.vue-grid-item),
+.dashboard-grid--static :deep(.vue-grid-item) { transition: none; }
 :deep(.vue-grid-item) {
   &.resizing { opacity: .9; }
   .vue-resizable-handle {

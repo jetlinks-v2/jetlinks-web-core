@@ -1,78 +1,50 @@
-# 对象总览
+# 对象概览与连续阅读
 
-复用对象来源的模型、数据和动作，在同一页展示数据及常用操作；可选择内容、拖动布局并保存个人视图。业务名称、单位、枚举和输入类型来自原模型，页面不向用户显示 Provider、Schema 等内部术语。
+公共入口：`@jetlinks-web-core/components/ObjectOverview`。对象身份、模型、数据和动作沿 `src/object-capability/` 消费原业务来源；展示组件不创建 HTTP 请求或第二份数据权限。
 
-枚举按模型中的取值名称展示，兼容 JSON 传输后的数字／字符串键；例如模型的 `"0"` 与读数 `0` 均显示“离线”，缺失值仍显示未知。
+对象引用使用对象图标与名称链接呈现，按原 `open` 事件交给宿主导航，不在字段值末尾混入方向箭头。可访问名称仅为对象名称／标识；悬停和聚焦提示保留完整名称及标识。不可用目标和编辑预览保持禁用，不改变来源授权。`ObjectDataTools.compact` 同时收紧图标入口与控件间距，停靠判断继续按实际宽度进行。
 
-## 使用
+数据概况搜索匹配完整成员集合中的名称、单位和来源，再按阅读批次呈现；搜索与清空不改变成员绑定，筛选期间的滚动不会覆盖原阅读位置。自动更新沿同一实例的按来源批量读取，复用公共采样周期控件；后台页签、隐藏页面、编辑及卸载暂停，更新失败保留上次值并提示失败，查询时刻不冒充采集时间。
 
-```vue
-<script setup lang="ts">
-import { ObjectOverview } from '@jetlinks-web-core/components/ObjectOverview'
-import type { ObjectViewStore } from '@jetlinks-web-core/components/ObjectOverview'
-defineProps<{ store: ObjectViewStore }>()
-</script>
-<template>
-  <ObjectOverview :object="{ type: 'device', id: 'existing-object-id' }" :store="store" />
-</template>
-```
+来源在 relation 的 `expands.dataAccess` 声明历史／聚合命令及操作、输出类型和条数限额后，数据项才显示“历史与统计”。界面使用原绑定及同来源命令，保留时间、缺值、原始精度与单位，历史翻页和区间统计均由来源执行。`dataAnalysis` 用途声明对象集合分析的原参数角色，界面按声明绑定公共时间范围，其余参数沿原模型；来源可经 `ObjectPresentation.members` 提供结果呈现，`typeId: '*'` 为所有对象类型提供成员级默认呈现，精确类型的呈现优先。
 
-`object` 为 `{ type, id, name? }`。`store` 由宿主注入，不传时只展示默认总览。`viewId` 可定位已保存视图；`active=false` 时停止展示操作面板。关闭承载前调用组件暴露的 `beforeLeave(): Promise<boolean>`，处理未保存草稿。
+业务展示统一通过 `moduleRegistry.objectPresentations` 注册。`ObjectPresentation.sections` 使用稳定 `id`、本地化 `label`、`members`（同来源／成员种类，可指定成员 ID）及规范关系身份 `relations` 组织分区；不按显示名称或业务字段猜测分组。分区声明只负责分组与绑定，宿主统一呈现外壳和正文。成员级 `members.component/label` 与记录级 `record.component` 仍可独立使用，未注册时无需补组件。
 
-宿主补充内容放默认插槽；只与当前对象有关的轻量操作放 `actions` 插槽，跟随总览工具栏，不作为独立空白区块。
+`useObjectPresentationRegistry` 统一投影注册；成员按选择的目标对象类型匹配，精确类型优先于 `typeId: '*'`；同等精确的重复注册记录冲突并回退通用展示，不由模块顺序决定。成员精确 ID 绑定优先于同来源分组，等精确分区重叠时保留通用组。组件加载／渲染失败也保留原值及错误反馈，读取失败与缺值不进入业务组件；后台更新失败保留旧值及宿主错误提示。分区外壳、检索、历史、动作与运行时由宿主持有，业务正文不再嵌套另一张外壳卡片。
 
-默认内容按已有语义分为基本信息、当前状态、归属与关联及当前读数，各组有界选择前 6 项，显式动作最多 4 项；不自动执行查询能力。引用使用 `expands.reference`，状态使用字段 `semanticRole=status`，读数使用 `result/value` 角色或字段/来源模型的 `semanticTypes=observation`。字段的状态或引用声明优先于来源片段分类；分类不会把整个业务对象改成观测对象。没有声明时仍是普通信息，不从字段名、单位、数字类型或提供方 ID 猜测。短信息组可以并排，读数组独立整行，不创建空组。
+成员正文组件接收 `{ member, value }`，其中 `value` 是一个目标对象的属性值或查询流的一次输出；查询端点的外层结果集合由公共层展开，属性数组及输出中的数组保持整体；不接收传输层的 `ObjectCapabilityValue` 或加载状态。概览和查询面板共用 `ObjectMemberValue`，由宿主解包、标识目标并展示限制；业务组件渲染失败时保留原值的通用展示和不可用反馈。
 
-默认布局与新增内容共用 `object-capability/content.ts`、`dashboard.ts` 的分组规则；数值类型只控制格式，读数语义才采用重点数值呈现。原有保存布局不自动迁移，追加内容只加入语义一致的组，不把新读数塞进旧的混合组。自定义时复用关系选择器，可以选择当前对象或沿关系找到的对象的属性、查询及动作。选择查询后按原输入模型配置参数。动态实例字段仅在实例模型明确声明时可选，不从同类型的其他实例猜测。
+仪表盘中的 `sectionId/sectionMembers` 只保存来源绑定，组件与实例值不持久化；未装配展示模块时仍能沿绑定读取并通用呈现。显式查询只在用户绑定后加入分区，不因同来源分组而自动执行全部函数。`ObjectContentGroup appearance="embedded"` 可在已有分区内呈现摘要，保留原状态、引用、历史和动作链，不重复卡片标题与外框。
 
-## 公共入口
+历史与区间统计使用“图表／表格”切换，数值默认只显示图表，非数值显示表格；不在图表下同时展开全部记录。枚举即使使用数字编码也保留状态语义，不生成数值趋势。两种视图共用已读取样本与来源分页，切换不产生新查询。表格列名沿数据项名称，值、状态与单位复用 `ObjectDataView`；图表单位也沿公共单位登记表解析。
 
-| 入口 | 职责 |
+## 标准阅读与保存页面
+
+分区内部沿模型声明或保存的成员顺序呈现；当前值变为可用、缺值或失败时原位更新，不按实例值是否存在重新排序。
+
+`ObjectOverview` 在没有选中保存页面且不编辑时，使用 `ObjectReadingView` 按语义展示默认成员。每个分区先呈现 20 项，滚动接近底部时再追加 20 项直到完整呈现，不需要“查看全部／收起”。已有值、缺值和失败均保留；呈现批次不改变成员选择、属性读取请求或持久化，也不代表属性接口具有分页能力。保存的页面与编辑继续使用原仪表盘和持久化格式。模型加载、保存页面读取失败、单个来源读取失败分别保留对应反馈，外部记录插槽仍可用。
+
+| 公共能力 | 输入与用途 |
 | --- | --- |
-| `ObjectOverview` | 单页承载、内容选择、布局、视图和草稿 |
-| `ObjectDataView` | 数值/单位、布尔、枚举、日期、结构及有界集合；不发请求 |
-| `ObjectReferenceDisplay` | 统一显示目标名称、类型图标和进入入口；仅发出 `open`，不请求或跳转 |
-| `ObjectCapabilityPicker` | 原关系路径及来源成员选择，输出原持久 binding |
-| `ObjectOperationPanel` | 输入、确认目标快照、执行、展示原回执 |
-| `useObjectCapabilities` | 页面内模型发现及按来源批读；对象切换取消旧请求 |
+| `ObjectReadingView` | `entries`、可选分区 `labels`、`preview`、原 `runtime`；优先以观测为主区，没有观测时以资料或状态为主区；其他语义分区位于资料侧区，`context` 插槽全宽放在下方。复用 Ant Design Card 构成明确面板，窄容器纵向排列 |
+| `ObjectContentGroup` | 原卡片默认不变；`appearance="section"` 的观测使用平台 Ant List／ListItemMeta，无表头，以名称、当前读数和单位成对呈现，来源为辅助信息；资料仍为字段网格。列表字体、行距和分隔沿平台组件，数值／状态／时间／引用按元数据呈现。两种外观复用 `ObjectContentValue` 的引用、动作、失败重试与展示扩展链；`actions` 插槽承载分区级动作 |
+| `ObjectDataView` | `value`、原 `metadata`、`state`、`compact`、可选 `emptyText`；保留合法 0/false/空字符串与缺值的差异 |
+| `ObjectDataView.defaultExpanded` | 结构值的初始展开状态。数组与结构按需展开，每次追加 20 项直到完整可见；保留总项数，不静默截断 |
+| `ObjectOverview.title` 插槽 | 默认标题的公开替换入口，供当前对象资料等上下文组合复用；不改变数据与动作状态 |
+| `ObjectContentEntry` | 与 `ObjectContentGroup`、`ObjectReadingView` 一同公开，消费者不必深导入组件内部文件取得类型 |
 
-纯布局变化不重复读取数据。属性请求按来源分组，每批最多 128 项；关系解析沿原 `ObjectSpec`，最多返回 20 个目标并标记截断。动作要求唯一目标，执行使用确认时的目标，不自动批量派发或重试。请求完成不代表设备或其他业务已生效。
+连续阅读依据 `objectMemberContentGroup` 的声明语义，不按业务类型 ID、字段名或数值类型猜测分区。卡片之间使用仪表盘间距，内部不使用 Splitter。双列比例为 1.65:1，侧区至少 224px；容器不超过 620px 时纵向排列。主区内容 480px、侧区各分区 234px，在各自区域内滚动，避免长数据列表挤走其他信息。滚动区可通过键盘访问，名称与读数成对呈现；宿主可通过 `layout.positions`／`update:layout` 保存呈现批次和滚动位置，组件自身不存储数据。自定义展示只接收成功且非空的值；加载、失败与缺值由公共组件保留真实状态，不能被自定义内容掩盖。引用优先显示解析后的对象并转发 `open`，动作仍沿原准备、确认和执行回执链路。
 
-来源在属性 `expands.reference` 声明 `{ targetType, relationId?, reverse?, labelProperty? }`。例如工单的 `project` 指向 `project` 类型，设备的 `productId` 指向 `product` 类型；字段名及 `modelId` 本身不暗示引用。`relationId` 只定位既有关系，不创建第二条图谱边。原字符串或数组继续供计算和筛选使用。
+本体资源浏览的默认概览直接复用 `DashBoardCanvas`，与保存页面和调整模式使用同一栅格和 `ObjectContentGroup` 卡片。默认资料、状态和引用通过 `contentGroups` 合并到上方的可展开资料带，收起时保留原引用入口；数据概况全宽展示，按容器宽度自动排成一列或两列。用户保存的坐标保持原格式，原 `contentGroup` 与显式 `selections` 继续有效。`appearance="section"` 的卡片以分配高度滚动；可展开资料带只回传不依赖分配高度的自然正文尺寸，避免画布高度反馈。
 
-同来源的 `labelProperty` 是公开的名称快照；缺少名称时沿当前请求上下文批量查找目标，按类型去重、每批最多 128 个。引用字段最多读 20 项、首屏显示 3 项，其余就近展开；不把预览数当总数。缺失或读取失败保留标识并提示暂不可查看，不推断删除或越权。名称快照不保证目标仍可打开，进入后仍由目标来源读取。
+阅读容器沿用宿主底色，不额外铺灰底；内容卡片与平台 Ant Card 共用 `--bg-trans-8` 表面色。观测列表不添加重复列头或吸顶层。
 
-`ObjectContentGroup` 和 `ObjectOverview` 将 `open({ type, id, name? })` 交给宿主处理，宿主沿原导航及离开保护进入对象；编辑布局时禁止进入。默认内容排除 identity 来源的 `semanticRole=identity` 以及引用的同来源名称字段，已有保存布局保持原样。`identifier` 业务编号及非身份来源的记录 ID 继续作为数据展示。
+当前属性读取接口没有投影采集时间，列表底部明确显示“数据时间暂不可用”，多来源时各条仍可辨认来源；不以客户端刷新时钟伪造采集时间，也不添加无来源的趋势或健康结论。默认标题为“数据概况”，用户已保存的自定义标题不被改写。身份来源只有标识、缺少展示名称时，模型 API 使用既有类型目录的 `i18nName/name` 补充本地化名称；原 providerId 与显式来源名称保留，名称查询失败不阻断模型读取。未来来源提供时间契约时，由属性读取 owner 扩展状态投影，再接入展示。
 
-## 业务表现扩展
+## 类型与结果边界
 
-默认分区标题为“基本资料／状态／相关对象／最新数据／业务数据／操作”，已保存的自定义标题保持原样。概览由页面承载滚动；默认卡片根据自然内容高度投影，窄容器将阅读布局投影为单列，不回写桌面坐标。已保存桌面尺寸与编辑尺寸保持；主动缩小或长内容仍可在卡片内滚动。
-
-`ObjectDataView` 通过公共 `useValueUnit` 消费平台原 `/protocol/units` 登记表的符号（如 `percent → %`），不转换数值；按宿主请求客户端共享读取，失败保留原单位并可在下次挂载重试。未知自定义单位保留原文本，登记的空符号不显示单位 ID。
-
-原 `moduleRegistry` 的 `objectPresentations` 可提供 `members`，按稳定的 `{providerId, kind, id}` 匹配，不按名称：
-
-```ts
-const presentation = {
-  typeId: 'device',
-  fields: [],
-  members: [{
-    ref: { providerId: 'device-data', kind: 'query', id: 'snapshots' },
-    component: ObjectPropertySnapshots,
-  }],
-}
-```
-
-`component` 接收 `member/value/state`；动作可注册 `editor` 替换默认操作面板，接收 `member/binding/runtime`。数据由宿主 runtime 查询，业务组件只负责展示或交互；继续使用原来源命令执行权限及业务校验。渲染失败保留配置，并允许重试。
-
-## 保存与复用
-
-`ObjectViewStore` 提供 `list/get/create/save/delete/defaultView/setDefault`。保存完整 `DashboardValue` 和持久 binding，不保存业务查询结果或确认令牌。用户和部署作用域由存储服务确定。一个对象可以保存多个视图；另存为不覆盖原视图，默认引用独立存储。
-
-编辑草稿不写正式 localStorage。保存失败保留草稿；本页面内切换对象会保留各自草稿，离开承载时由 `beforeLeave` 提示处理。业务操作在布局编辑时禁用。
-
-能力加载、个人视图读取及保存失败分别反馈和重试；个人视图未读取成功前不允许保存，避免默认内容覆盖原配置。加载和失败时不挂载空仪表盘，正常浏览高度沿原网格计算，空内容保持紧凑；宿主提供的业务记录不因总览失败而隐藏。组件只展示来源的授权结果，不增加权限预检或特殊放行。
-
-流程变量和指标字段消费者可复用 `ObjectCapabilityPicker` 的 binding 与原 `data-capability` runtime，不依赖总览组件或本体存储 API。当前未接入具体流程或指标页面。
-
-本地实验入口沿用 `/data-capability/lab`；工作台的持久化适配位于 ontology-ui `api/objectViews.ts`。真实页面和写操作的验收状态见 [设计与验证记录](../../../docs/对象能力展示与交互设计.md)。
+- 枚举优先使用原模型标签，兼容序列化的枚举键；布尔保留自定义文本，否则显示“是/否”。数值单位复用共享单位能力，日期沿现有类型格式化。
+- 空数组和空结构明确显示项数；较大集合展开后有“显示更多”，每次有界追加，所有原值都可查看。
+- 密码类型先脱敏，再判断结构或集合，避免对象/数组形态绕过密码掩码。HTML 仍由 Vue 文本插值转义。
+- 动作确认参数和结果显式使用 `defaultExpanded`，保证参数、拒绝结果和告警可直接核对；请求完成仍不代表业务成功。
+- 组件转发 `open`、`retry`、`operation`，预览模式禁用关联进入及动作。原运行时和业务 owner 继续负责权限、目标快照、取消与执行结果。

@@ -4,9 +4,29 @@ import type { ObjectMember, ObjectMemberSelection, ObjectPropertyMetadata } from
 import { objectCapabilityId, sameObjectMember } from './metadata'
 import { defaultObjectMembers } from './references'
 import { objectContentGroups, objectMemberContentGroup, type ObjectContentGroupKind, type ObjectContentLabels } from './content'
+import type { ObjectSectionPresentation } from '../types/object-presentation'
+import { objectMemberSection } from './sections'
 
 export interface ObjectContentWidget extends DashboardWidget {
-  componentProps: DashboardWidget['componentProps'] & { selections?: ObjectMemberSelection[]; contentGroup?: ObjectContentGroupKind }
+  componentProps: DashboardWidget['componentProps'] & { selections?: ObjectMemberSelection[]; sectionId?: string; contentGroup?: ObjectContentGroupKind; contentGroups?: ObjectContentGroupKind[]; collapsible?: boolean }
+}
+export function objectSectionMembers(members: ObjectMember[], sections: ObjectSectionPresentation[], id: string): ObjectMember[] {
+  return objectContentGroups.flatMap(group => objectGroupMembers(members, group)).filter(member => objectMemberSection(member, sections)?.id === id)
+}
+export function objectSectionWidget(section: ObjectSectionPresentation, count: number, y: number): ObjectContentWidget {
+  return { id: `section:${section.id}`, type: 'object-data', name: section.label(), componentProps: {
+    sectionId: section.id, sectionMembers: section.members,
+    gridItem: { x: 0, y, w: 12, h: objectContentHeight(Math.min(count, 6), 2), minW: 4, minH: 3 }
+  } }
+}
+export function objectWidgetSection(widget: ObjectContentWidget, sections: ObjectSectionPresentation[] = []): ObjectSectionPresentation | undefined {
+  const id = widget.componentProps.sectionId
+  if (typeof id !== 'string' || !id) return
+  const registered = sections.find(section => section.id === id)
+  if (registered) return registered
+  const bindings = widget.componentProps.sectionMembers
+  return { id, label: () => widget.name || '', members: Array.isArray(bindings) ? bindings.filter(ref => ref && typeof ref.providerId === 'string' &&
+    ['property', 'query', 'action'].includes(ref.kind) && (ref.id === undefined || typeof ref.id === 'string')) : [] }
 }
 export function currentObjectSelection(member: ObjectMember): ObjectMemberSelection {
   const object = { objectType: member.ref.type, objectSource: { source: 'upper' as const, upperKey: 'object' } }
@@ -33,14 +53,29 @@ export function objectGroupMembers(members: ObjectMember[], group: ObjectContent
     !(member.ref.kind === 'action' && editors.has(JSON.stringify([member.ref.type, member.ref.providerId, member.ref.id]))))
 }
 export function objectWidgetSelections(widget: ObjectContentWidget, members: ObjectMember[] = [], page = 0): ObjectMemberSelection[] {
-  const group = widget.componentProps.contentGroup
-  const size = group === 'actions' ? 4 : 6
-  return group ? objectGroupMembers(members, group).slice(page * size, (page + 1) * size).map(currentObjectSelection) : widget.componentProps.selections || []
+  const section = objectWidgetSection(widget)
+  if (section) {
+    return [...new Map([...objectSectionMembers(members, [section], section.id).map(currentObjectSelection), ...(widget.componentProps.selections || [])].map(selection => [selectionKey(selection), selection])).values()]
+  }
+  const groups = objectWidgetGroups(widget)
+  const size = groups.length === 1 && groups[0] === 'actions' ? 4 : 6
+  return groups.length ? groups.flatMap(group => objectGroupMembers(members, group)).slice(page * size, (page + 1) * size).map(currentObjectSelection) : widget.componentProps.selections || []
+}
+export function objectWidgetGroups(widget: ObjectContentWidget): ObjectContentGroupKind[] {
+  const groups = widget.componentProps.contentGroups
+  return Array.isArray(groups) ? [...new Set(groups.filter(group => objectContentGroups.includes(group)))]
+    : widget.componentProps.contentGroup && objectContentGroups.includes(widget.componentProps.contentGroup) ? [widget.componentProps.contentGroup] : []
 }
 export function dashboardSelections(value: DashboardValue, members: ObjectMember[] = [], pages: Record<string, number> = {}): ObjectMemberSelection[] {
   return (value.components as ObjectContentWidget[])
     .filter((widget) => widget.visible !== false)
-    .flatMap((widget) => objectWidgetSelections(widget, members, pages[widget.id]))
+    .flatMap((widget) => Array.isArray(widget.componentProps.contentGroups) && objectWidgetGroups(widget).length
+      ? objectWidgetGroups(widget).flatMap(group => objectGroupMembers(members, group)).map(currentObjectSelection)
+      : objectWidgetSelections(widget, members, pages[widget.id]))
+}
+/** Continuous reading uses the same default policy without paging; queries still require explicit bindings. */
+export function objectReadingSelections(members: ObjectMember[]): ObjectMemberSelection[] {
+  return objectContentGroups.flatMap(kind => objectGroupMembers(members, kind).map(currentObjectSelection))
 }
 /** Fit the same normalized grid used by DashBoardCanvas; failures and empty views reserve no space. */
 export function objectDashboardHeight(value: DashboardValue): number {
@@ -73,44 +108,46 @@ export function objectReadingDashboard(value: DashboardValue, heights: Readonly<
   } })) }
 }
 
-/** Each semantic group has its own bounded, stable selection; a new source cannot interleave names and readings. */
-export function objectDefaultDashboard(members: ObjectMember[], labels: ObjectContentLabels): DashboardValue {
+/** Context precedes full-width readings; saved dashboards retain their explicit coordinates. */
+export function objectDefaultDashboard(members: ObjectMember[], labels: ObjectContentLabels, sections: ObjectSectionPresentation[] = []): DashboardValue {
+  const generic = members.filter(member => !objectMemberSection(member, sections))
   const groups = objectContentGroups.flatMap((kind) => {
-    const items = objectGroupMembers(members, kind).slice(0, kind === 'actions' ? 4 : 6)
+    const items = objectGroupMembers(generic, kind).slice(0, kind === 'actions' ? 4 : 6)
     return items.length ? [{ kind, items }] : []
   })
-  const compact = (group: (typeof groups)[number]) =>
-    group.items.length <= 3 && ['data', 'status', 'references'].includes(group.kind)
-  let y = 0,
-    x = 0,
-    rowHeight = 0
-  const components = groups.map((group, index) => {
-    const half = compact(group) && (x === 6 || (groups[index + 1] && compact(groups[index + 1])))
-    const w = half ? 6 : 12
-    const h = objectContentHeight(group.items.length, w === 6 ? 2 : 3, group.kind === 'actions')
+  const context = groups.filter(group => ['data', 'status', 'references'].includes(group.kind))
+  let y = context.length ? 2 : 0
+  const components: ObjectContentWidget[] = context.length ? [{
+    id: 'object-context', type: 'object-data', name: labels.data,
+    componentProps: { contentGroups: context.map(group => group.kind), collapsible: true,
+      gridItem: { x: 0, y: 0, w: 12, h: 2, minW: 4, minH: 2 } }
+  }] : []
+  for (const group of groups.filter(group => !context.includes(group))) {
+    const h = objectContentHeight(group.items.length, 2, group.kind === 'actions')
     const widget: ObjectContentWidget = {
       id: `object-${group.kind}`,
       type: group.kind === 'actions' ? 'object-actions' : 'object-data',
       name: labels[group.kind] || labels.data,
       componentProps: {
-        gridItem: { x, y, w, h, minW: 4, minH: group.kind === 'actions' ? 2 : 3 },
+        gridItem: { x: 0, y, w: 12, h, minW: 4, minH: group.kind === 'actions' ? 2 : 3 },
         contentGroup: group.kind
       }
     }
-    rowHeight = Math.max(rowHeight, h)
-    if (half && x === 0) x = 6
-    else {
-      y += rowHeight
-      x = 0
-      rowHeight = 0
-    }
-    return widget
-  })
+    y += h
+    components.push(widget)
+  }
+  for (const section of sections) {
+    const items = objectSectionMembers(members, sections, section.id)
+    if (!items.length) continue
+    const widget = objectSectionWidget(section, items.length, y)
+    components.push(widget)
+    y += widget.componentProps.gridItem!.h!
+  }
   return { canvas: { gridLayout: { colNum: 12, rowHeight: 32, marginHorizontal: 12, marginVertical: 12 } }, components }
 }
 
 export function addObjectDashboardGroup(value: DashboardValue, kind: ObjectContentGroupKind, labels: ObjectContentLabels): DashboardValue {
-  if (value.components.some(widget => widget.visible !== false && widget.componentProps.contentGroup === kind)) return value
+  if (value.components.some(widget => widget.visible !== false && objectWidgetGroups(widget as ObjectContentWidget).includes(kind))) return value
   return { ...value, components: [...value.components, {
     id: crypto.randomUUID(), type: kind === 'actions' ? 'object-actions' : 'object-data', name: labels[kind] || labels.data,
     componentProps: { contentGroup: kind, gridItem: {
@@ -125,7 +162,8 @@ export function addObjectDashboardSelection(
   value: DashboardValue,
   selection: ObjectMemberSelection,
   members: ObjectMember[],
-  labels: ObjectContentLabels
+  labels: ObjectContentLabels,
+  sections: ObjectSectionPresentation[] = []
 ): DashboardValue {
   if (dashboardSelections(value, members).some((item) => selectionKey(item) === selectionKey(selection))) return value
   const groupOf = (item: ObjectMemberSelection) => {
@@ -135,13 +173,13 @@ export function addObjectDashboardSelection(
     return !member && !isCurrentSelection(item) ? 'related' : objectMemberContentGroup(member)
   }
   const kind = groupOf(selection)
+  const member = members.find(member => sameObjectMember(member.ref, selection.member))
+  const section = member ? objectMemberSection(member, sections) : undefined
   const type = kind === 'actions' ? 'object-actions' : 'object-data'
   const widget = (value.components as ObjectContentWidget[]).find(
     (item) =>
-      item.type === type &&
       item.visible !== false &&
-      item.componentProps.selections?.length &&
-      item.componentProps.selections.every((selected) => groupOf(selected) === kind)
+      (section ? item.componentProps.sectionId === section.id : item.type === type && !item.componentProps.sectionId && !!item.componentProps.selections?.length && item.componentProps.selections.every((selected) => groupOf(selected) === kind))
   )
   if (!widget)
     return {
@@ -151,8 +189,9 @@ export function addObjectDashboardSelection(
         {
           id: crypto.randomUUID(),
           type,
-          name: labels[kind] || labels.data,
+          name: section?.label() || labels[kind] || labels.data,
           componentProps: {
+            ...(section ? { sectionId: section.id, sectionMembers: section.members } : {}),
             selections: [selection],
             gridItem: {
               x: 0,
@@ -171,7 +210,7 @@ export function addObjectDashboardSelection(
         }
       ]
     }
-  const selections = [...widget.componentProps.selections!, selection]
+  const selections = [...(widget.componentProps.selections || []), selection]
   const grid = widget.componentProps.gridItem || {}
   const oldHeight = Number(grid.h || 3),
     bottom = Number(grid.y || 0) + oldHeight

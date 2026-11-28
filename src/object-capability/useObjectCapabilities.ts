@@ -5,35 +5,38 @@ import type { DataCapabilityRequest, DataCapabilityRuntime } from '../data-capab
 import { objectCapabilitiesApi } from './api'
 import { objectCapabilityId, objectMembers } from './metadata'
 import { referencePropertyKeys, referenceValue, resolveReferenceNames } from './references'
+import { useObjectAutoRefresh, type ObjectAutoRefreshOptions } from './useObjectAutoRefresh'
 import type { ObjectCapabilityValue, ObjectMember, ObjectReference, ObjectReferenceValue } from './types'
 
-export interface ObjectMemberState { status: 'loading' | 'ready' | 'failed'; value?: unknown; references?: ObjectReferenceValue }
+export interface ObjectMemberState { status: 'loading' | 'ready' | 'failed'; value?: unknown; references?: ObjectReferenceValue; refreshError?: boolean }
 
 /** Instance-local model/data lifetime. A slow old request cannot update the next object. */
 export function useObjectCapabilities(object: Readonly<Ref<ObjectReference | undefined>>, options: {
   request?: DataCapabilityRequest
   selected?: Readonly<Ref<readonly string[] | undefined>>
-} = {}) {
+} & ObjectAutoRefreshOptions = {}) {
   const request = options.request ?? useDataCapabilityRequest()
   const members = shallowRef<ObjectMember[]>([])
   const values = shallowRef<Record<string, ObjectMemberState>>({})
   const loading = shallowRef(false), failed = shallowRef(false)
   let generation = 0, readRevision = 0, controller = new AbortController(), runtime: DataCapabilityRuntime | undefined
+  let reading = false, backgroundRead = false, readController = new AbortController()
   const visible = computed(() => options.selected?.value === undefined
     ? members.value.filter(member => member.ref.kind === 'property').slice(0, 6)
     : members.value.filter(member => options.selected!.value!.includes(objectCapabilityId(member.ref))))
 
   function context() { return { request, attributes: { object: object.value }, parameters: { object: object.value } } }
-  async function read(selected: ObjectMember[] = visible.value) {
+  async function read(selected: ObjectMember[] = visible.value, background = false) {
     if (!object.value) return
+    readController.abort(); readController = new AbortController(); reading = true; backgroundRead = background
     const current = generation, revision = ++readRevision, api = objectCapabilitiesApi(context()), target = { ...object.value }
-    const signal = controller.signal, session = runtime
+    const signal = readController.signal, session = runtime
     const stale = () => current !== generation || revision !== readRevision
     const next = { ...values.value }
     const groups = new Map<string, ObjectMember[]>()
     for (const member of selected) {
       if (member.ref.kind === 'action') continue
-      next[objectCapabilityId(member.ref)] = { status: 'loading' }
+      if (!background || !next[objectCapabilityId(member.ref)]) next[objectCapabilityId(member.ref)] = { status: 'loading' }
       if (member.ref.kind === 'property') groups.set(member.ref.providerId, [...(groups.get(member.ref.providerId) || []), member])
     }
     values.value = next
@@ -57,7 +60,10 @@ export function useObjectCapabilities(object: Readonly<Ref<ObjectReference | und
         }
         values.value = result
       } catch {
-        if (!stale()) values.value = { ...values.value, ...Object.fromEntries(entries.map(member => [objectCapabilityId(member.ref), { status: 'failed' }])) }
+        if (!stale()) values.value = { ...values.value, ...Object.fromEntries(entries.map(member => {
+          const key = objectCapabilityId(member.ref), previous = values.value[key]
+          return [key, background && previous?.status === 'ready' ? { ...previous, refreshError: true } : { status: 'failed' }]
+        })) }
       }
     }))
     if (stale()) return
@@ -72,13 +78,16 @@ export function useObjectCapabilities(object: Readonly<Ref<ObjectReference | und
         const data = await session!.query<ObjectCapabilityValue>({ version: 1, source: { capabilityId: key, version: 1 } }, { signal })
         if (!stale()) values.value = { ...values.value, [key]: { status: 'ready', value: data.data.values[0]?.value } }
       } catch {
-        if (!stale()) values.value = { ...values.value, [key]: { status: 'failed' } }
+        if (!stale()) values.value = { ...values.value, [key]: background && values.value[key]?.status === 'ready'
+          ? { ...values.value[key], refreshError: true } : { status: 'failed' } }
       }
     }
+    if (!stale()) reading = false
   }
   async function load() {
     const current = ++generation
     controller.abort(); controller = new AbortController()
+    readRevision++; readController.abort(); reading = false
     void runtime?.dispose(); runtime = undefined
     members.value = []; values.value = {}; failed.value = false
     if (!object.value) { loading.value = false; return }
@@ -95,6 +104,9 @@ export function useObjectCapabilities(object: Readonly<Ref<ObjectReference | und
   // Model readiness and the visible set drive one read path, including views restored during a slow read.
   watch(() => loading.value ? undefined : JSON.stringify(visible.value.map(member => objectCapabilityId(member.ref)).sort()),
     () => { if (!loading.value && !failed.value) void read() })
-  onBeforeUnmount(() => { generation++; controller.abort(); void runtime?.dispose() })
+  useObjectAutoRefresh(options, computed(() => !loading.value && !failed.value && visible.value.length > 0),
+    () => { if (!reading) void read(undefined, true) },
+    () => { if (backgroundRead) { readRevision++; readController.abort(); reading = false } })
+  onBeforeUnmount(() => { generation++; controller.abort(); readController.abort(); void runtime?.dispose() })
   return { members, visible, values, loading, failed, refresh: load, read, getRuntime: () => runtime }
 }

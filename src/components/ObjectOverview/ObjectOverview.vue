@@ -6,15 +6,18 @@ import { PlusOutlined, EditOutlined, ReloadOutlined, MoreOutlined } from '@ant-d
 import { DashBoardCanvas } from '../DashBoardCanvas'
 import type { DashboardCatalog, DashboardValue } from '../DashBoardCanvas/types'
 import ObjectContentGroup, { type ObjectContentEntry } from './ObjectContentGroup.vue'
+import ObjectReadingView from './ObjectReadingView.vue'
 import ObjectCapabilityPicker from './ObjectCapabilityPicker.vue'
+import ObjectDataTools from './ObjectDataTools.vue'
 import { objectOverviewMessages } from './messages'
 import { useObjectDashboardLayout } from '../../object-capability/useObjectDashboardLayout'
 import { useObjectCapabilities } from '../../object-capability/useObjectCapabilities'
 import { useObjectRelatedData } from '../../object-capability/useObjectRelatedData'
 import { useObjectViews, type ObjectViewStore } from '../../object-capability/views'
-import { useObjectMemberPresentations } from '../../object-capability/useObjectMemberPresentations'
+import { useObjectPresentationRegistry } from '../../object-capability/useObjectPresentationRegistry'
+import { objectMemberPresentation } from '../../object-capability/presentations'
 import { objectCapabilityId, sameObjectMember } from '../../object-capability/metadata'
-import { addObjectDashboardSelection, dashboardSelections, objectWidgetSelections, objectGroupMembers, isCurrentSelection, objectDashboardHeight, objectDefaultDashboard, selectionKey, type ObjectContentWidget } from '../../object-capability/dashboard'
+import { currentObjectSelection, objectReadingSelections, addObjectDashboardSelection, dashboardSelections, objectWidgetSelections, objectWidgetGroups, objectGroupMembers, isCurrentSelection, objectDashboardHeight, objectDefaultDashboard, selectionKey, type ObjectContentWidget } from '../../object-capability/dashboard'
 import type { ObjectMemberSelection, ObjectReference } from '../../object-capability/types'
 import type { VariableObjectSpec } from '../../types/relation'
 
@@ -22,23 +25,29 @@ const props = withDefaults(defineProps<{ object?: ObjectReference; store?: Objec
 defineEmits<{ open: [object: ObjectReference] }>()
 const { t } = useI18n({ useScope: 'local', messages: objectOverviewMessages })
 const selected = shallowRef<string[]>([])
-const capability = useObjectCapabilities(toRef(props, 'object'), { selected })
+const refreshInterval = ref(0)
+const pollingActive = ref(false)
+const capability = useObjectCapabilities(toRef(props, 'object'), { selected, active: pollingActive, interval: refreshInterval })
 const groupLabels = computed(() => ({ data: t('basicInfo'), actions: t('operations'), status: t('currentStatus'),
   references: t('references'), observations: t('readings'), related: t('relatedData') }))
 const defaults = computed(() => objectDefaultDashboard(capability.members.value, groupLabels.value))
 const view = useObjectViews(toRef(props, 'object'), defaults, toRef(props, 'store'), toRef(props, 'viewId'))
+watch([() => props.active, view.editing], ([active, editing]) => { pollingActive.value = active && !editing }, { immediate: true })
 watch(view.editing, editing => { if (editing && !view.name.value) view.name.value = t('newView') })
 const groupPages = ref<Record<string, number>>({})
 watch(() => [props.object?.type, props.object?.id, view.currentId.value], () => { groupPages.value = {} })
-const selections = computed(() => dashboardSelections(view.value.value, capability.members.value, groupPages.value))
+const standard = computed(() => !view.currentId.value && !view.editing.value)
+const selections = computed(() => standard.value
+  ? objectReadingSelections(capability.members.value)
+  : dashboardSelections(view.value.value, capability.members.value, groupPages.value))
 watch(selections, items => { selected.value = [...new Set(items.filter(item => isCurrentSelection(item) && item.member.kind !== 'action').map(item => objectCapabilityId(item.member)))] }, { immediate: true })
 const ready = computed(() => !capability.loading.value && !capability.failed.value && Boolean(props.object))
 const { container, displayed, measure } = useObjectDashboardLayout(view.value, view.editing, view.currentId)
 const canvasHeight = computed(() => objectDashboardHeight(displayed.value))
 const loading = computed(() => capability.loading.value || (view.busy.value && !view.loaded.value))
 const canCustomize = computed(() => ready.value && Boolean(props.store) && view.loaded.value)
-const related = useObjectRelatedData(selections, ready, capability.getRuntime)
-const presentations = useObjectMemberPresentations(computed(() => props.object?.type))
+const related = useObjectRelatedData(selections, ready, capability.getRuntime, { active: pollingActive, interval: refreshInterval })
+const presentations = useObjectPresentationRegistry()
 const catalog = computed<DashboardCatalog>(() => ({ groups: [{ id: 'object', name: t('add') }], components: Object.fromEntries([
   ['object-data', t('data')], ['object-actions', t('operations')],
 ].map(([type, name]) => [type, { component: ObjectContentGroup, configs: [], groupId: 'object', defaultConfig: {
@@ -52,18 +61,20 @@ function add(selection: ObjectMemberSelection) {
   view.draft.value = addObjectDashboardSelection(view.draft.value, selection,
     [...capability.members.value, ...related.members.value], groupLabels.value)
 }
-function entries(widget: ObjectContentWidget): ObjectContentEntry[] {
-  return objectWidgetSelections(widget, capability.members.value, groupPages.value[widget.id]).map(selection => {
+function entry(selection: ObjectMemberSelection): ObjectContentEntry {
     const direct = isCurrentSelection(selection)
     const member = (direct ? capability.members.value : related.members.value).find(item => sameObjectMember(item.ref, selection.member))
-    return { selection, member, related: !direct, presentation: presentations.value.find(item => item.ref.providerId === selection.member.providerId && item.ref.id === selection.member.id && item.ref.kind === selection.member.kind),
+    return { selection, member, related: !direct, presentation: objectMemberPresentation(selection.member, presentations.value),
       state: !member ? { status: ready.value ? 'failed' : 'loading' }
         : selection.member.kind === 'action' ? { status: 'ready' }
           : direct ? capability.values.value[objectCapabilityId(selection.member)] || { status: 'loading' }
             : related.states.value[selectionKey(selection)] || { status: 'loading' } }
-  })
 }
-function groupCount(widget: ObjectContentWidget) { return widget.componentProps.contentGroup ? objectGroupMembers(capability.members.value, widget.componentProps.contentGroup).length : 0 }
+function entries(widget: ObjectContentWidget) {
+  if (Array.isArray(widget.componentProps.contentGroups) && objectWidgetGroups(widget).length) return objectWidgetGroups(widget).flatMap(group => objectGroupMembers(capability.members.value, group)).map(currentObjectSelection).map(entry)
+  return objectWidgetSelections(widget, capability.members.value, groupPages.value[widget.id]).map(entry)
+}
+function groupCount(widget: ObjectContentWidget) { return widget.componentProps.contentGroups ? 0 : objectWidgetGroups(widget).reduce((count, group) => count + objectGroupMembers(capability.members.value, group).length, 0) }
 function groupSize(widget: ObjectContentWidget) { return widget.componentProps.contentGroup === 'actions' ? 4 : 6 }
 function update(value: DashboardValue) { if (view.editing.value) view.draft.value = value }
 function refresh() {
@@ -101,7 +112,7 @@ function removeSelection(widget: ObjectContentWidget, selection: ObjectMemberSel
         <a-select-option value="">{{ t('view') }}</a-select-option>
         <a-select-option v-for="item in view.views.value" :key="item.id" :value="item.id">{{ item.name }}{{ item.id === view.defaultId.value ? ' ★' : '' }}</a-select-option>
       </a-select>
-      <strong v-else>{{ t('view') }}</strong>
+      <slot v-else name="title"><strong>{{ t('view') }}</strong></slot>
       <a-space v-if="view.editing.value" wrap :size="4">
         <a-input v-model:value="view.name.value" :maxlength="128" :placeholder="t('name')" class="object-overview__name" />
         <a-button type="primary" :loading="view.busy.value" :disabled="!view.loaded.value || !view.name.value.trim()" @click="view.save()">{{ t('save') }}</a-button>
@@ -109,6 +120,7 @@ function removeSelection(widget: ObjectContentWidget, selection: ObjectMemberSel
         <a-button :disabled="view.busy.value" @click="view.cancel">{{ t('cancel') }}</a-button>
       </a-space>
       <a-space v-else :size="4">
+        <ObjectDataTools v-model:interval="refreshInterval" :members="capability.members.value" :disabled="!active || !ready" :runtime="capability.getRuntime" />
         <slot name="actions" />
         <a-tooltip :title="t('retry')"><a-button type="text" :disabled="loading || view.busy.value" :aria-label="t('retry')" @click="refresh"><ReloadOutlined /></a-button></a-tooltip>
         <a-button v-if="canCustomize" type="text" @click="view.edit"><EditOutlined />{{ t('customize') }}</a-button>
@@ -127,20 +139,24 @@ function removeSelection(widget: ObjectContentWidget, selection: ObjectMemberSel
       <template #action><a-button type="link" size="small" @click="capability.refresh">{{ t('retry') }}</a-button></template>
     </a-alert>
     <template v-else-if="ready">
-      <div v-if="canvasHeight || view.editing.value" ref="container" class="object-overview__canvas" :class="{ 'object-overview__canvas--editing': view.editing.value }" :style="{ minHeight: `${canvasHeight}px` }">
+      <ObjectReadingView v-if="standard" :key="JSON.stringify([object?.type, object?.id])" :entries="selections.map(entry)" :preview="!active" :runtime="capability.getRuntime"
+        @retry="capability.refresh" @operation="$event.type === 'completed' && capability.read()" @open="$emit('open', $event)">
+        <template v-if="$slots.default" #context><slot /></template>
+      </ObjectReadingView>
+      <div v-else-if="canvasHeight || view.editing.value" ref="container" class="object-overview__canvas" :class="{ 'object-overview__canvas--editing': view.editing.value }" :style="{ minHeight: `${canvasHeight}px` }">
         <DashBoardCanvas scroll-mode="page" :model-value="displayed" :catalog="catalog" :editable="view.editing.value" :layout-editable="view.editing.value" :preview-mode="view.editing.value" @update:model-value="update">
           <template #widget="{ widget }">
-            <ObjectContentGroup v-if="catalog.components[widget.type]" :title="widget.name" :entries="entries(widget)" :preview="view.editing.value || !active" :runtime="capability.getRuntime" @content-height="measure(widget.id, $event)" @retry="capability.refresh" @operation="$event.type === 'completed' && capability.read()" @add="openPicker" @open="$emit('open', $event)">
+            <ObjectContentGroup v-if="catalog.components[widget.type]" :key="JSON.stringify([object?.type, object?.id, widget.id])" :title="widget.name" :entries="entries(widget)" :collapsible="!!widget.componentProps.collapsible" :appearance="widget.componentProps.collapsible ? 'section' : 'card'" :preview="view.editing.value || !active" :runtime="capability.getRuntime" @content-height="measure(widget.id, $event)" @retry="capability.refresh" @operation="$event.type === 'completed' && capability.read()" @add="openPicker" @open="$emit('open', $event)">
               <template v-if="!view.editing.value" #footer><a-pagination :total="groupCount(widget)" :page-size="groupSize(widget)" :current="(groupPages[widget.id] || 0) + 1" simple hide-on-single-page :show-size-changer="false" @change="groupPages[widget.id] = $event - 1" /></template>
             </ObjectContentGroup>
             <a-alert v-else type="warning" :message="t('unavailable')" />
-            <div v-if="view.editing.value" class="object-overview__selection-tools"><a-tag v-if="widget.componentProps.contentGroup" closable @close="view.draft.value = { ...view.draft.value, components: view.draft.value.components.filter(item => item.id !== widget.id) }">{{ widget.name }}</a-tag><template v-else><a-tag v-for="entry in entries(widget)" :key="selectionKey(entry.selection)" closable @close="removeSelection(widget, entry.selection)">{{ entry.member?.name || entry.selection.member.id }}</a-tag></template></div>
+            <div v-if="view.editing.value" class="object-overview__selection-tools"><a-tag v-if="objectWidgetGroups(widget).length" closable @close="view.draft.value = { ...view.draft.value, components: view.draft.value.components.filter(item => item.id !== widget.id) }">{{ widget.name }}</a-tag><template v-else><a-tag v-for="entry in entries(widget)" :key="selectionKey(entry.selection)" closable @close="removeSelection(widget, entry.selection)">{{ entry.member?.name || entry.selection.member.id }}</a-tag></template></div>
           </template>
         </DashBoardCanvas>
       </div>
       <p v-else class="object-overview__empty" role="status">{{ t('empty') }}</p>
     </template>
-    <slot />
+    <slot v-if="!standard || !ready || loading" />
     <a-modal v-model:open="pickerOpen" :title="t('add')" :footer="null" :width="640" destroy-on-close>
       <ObjectCapabilityPicker v-model:object="pickerObject" :context-object="object" :options="pickerOptions" @select="add" />
     </a-modal>

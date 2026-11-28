@@ -2,9 +2,35 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import * as vue from 'vue'
 import { createDashboardLoader, passthrough } from './helpers/dashboardRuntime.mjs'
+import { createComponentRenderer, flush, walk } from './helpers/componentRuntime.mjs'
 
 const { useDashboardState } = createDashboardLoader()('components/DashBoardCanvas/composables/useDashboardState.ts')
 const initial = () => ({ canvas: {}, components: [{ id: 'resources', type: 'resources', componentProps: { gridItem: { x: 0, y: 0, w: 12, h: 17, minW: 12, minH: 17, maxH: 100 } } }] })
+
+test('canvas settings are shown by default and can be omitted without disabling widget editing', async t => {
+  const Grid = vue.defineComponent({ props: ['widgets'], setup: (props, { slots }) => () => vue.h('grid', props.widgets.map(widget => slots.default({ id: widget.id }))) })
+  const asModule = component => ({ __esModule: true, default: component })
+  const Canvas = createDashboardLoader({
+    'vue-i18n': { useI18n: () => ({ t: key => key }) },
+    'ant-design-vue': { Button: passthrough('button'), Dropdown: passthrough('dropdown'), Menu: passthrough('menu'), MenuItem: passthrough('menuitem') },
+    '@ant-design/icons-vue': {},
+    './components/GridCanvas.vue': asModule(Grid),
+    './components/WidgetFrame.vue': asModule(passthrough('frame')),
+    './components/WidgetRenderer.vue': asModule(passthrough('widget'))
+  })('components/DashBoardCanvas/DashBoardCanvas.vue').default
+  const documentBefore = globalThis.document
+  globalThis.document = { addEventListener() {}, removeEventListener() {} }
+  const view = createComponentRenderer(), show = vue.ref(undefined)
+  const app = view.renderer.createApp({ setup: () => () => vue.h(Canvas, { modelValue: initial(), catalog: { groups: [], components: { resources: { configs: [] } } }, editable: true, layoutEditable: true, showSettings: show.value }) })
+  app.mount(view.root)
+  t.after(() => { app.unmount(); globalThis.document = documentBefore })
+  const dock = () => walk(view.root, node => String(node.props.class || '').includes('dashboard-setting-dock'))
+  assert.equal(dock().length, 1)
+  show.value = false; await flush()
+  assert.equal(dock().length, 0)
+  assert.equal(walk(view.root, node => node.type === 'frame')[0].props.editable, true)
+  assert.equal(walk(view.root, node => node.type === 'grid')[0].props['layout-editable'], true)
+})
 
 function harness(t) {
   const saved = new Map(), input = vue.ref(initial()), changes = []

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ArrowRightOutlined } from '@ant-design/icons-vue'
 import ObjectTypeIcon from '../IconValue/ObjectTypeIcon.vue'
 import { objectOverviewMessages } from './messages'
 import type { ObjectReference, ObjectReferenceValue } from '../../object-capability/types'
@@ -24,20 +23,18 @@ const remaining = computed(() => props.value.items.slice(3))
     <a-tooltip
       v-for="item in visible"
       :key="`${item.type}:${item.id}`"
-      :title="item.unavailable ? t('referenceUnavailable', { id: item.id }) : item.id"
+      :title="item.unavailable ? t('referenceUnavailable', { id: item.id }) : item.name && item.name !== item.id ? `${item.name} · ${item.id}` : item.id"
+      :trigger="['hover', 'focus']"
     >
       <a-button
         type="link"
         class="object-references__item"
+        :aria-label="item.name || item.id"
         :disabled="disabled || item.unavailable"
         @click="$emit('open', item)"
       >
-        <ObjectTypeIcon :type-id="item.type" />
+        <ObjectTypeIcon :type-id="item.type" aria-hidden="true" />
         <span class="object-references__name">{{ item.name || item.id }}</span>
-        <ArrowRightOutlined
-          v-if="!disabled && !item.unavailable"
-          class="object-references__arrow"
-        />
       </a-button>
     </a-tooltip>
     <a-popover
@@ -57,20 +54,18 @@ const remaining = computed(() => props.value.items.slice(3))
           <a-tooltip
             v-for="item in remaining"
             :key="`${item.type}:${item.id}`"
-            :title="item.unavailable ? t('referenceUnavailable', { id: item.id }) : item.id"
+            :title="item.unavailable ? t('referenceUnavailable', { id: item.id }) : item.name && item.name !== item.id ? `${item.name} · ${item.id}` : item.id"
+            :trigger="['hover', 'focus']"
           >
             <a-button
               type="link"
               class="object-references__item"
+              :aria-label="item.name || item.id"
               :disabled="disabled || item.unavailable"
               @click="$emit('open', item)"
             >
-              <ObjectTypeIcon :type-id="item.type" />
+              <ObjectTypeIcon :type-id="item.type" aria-hidden="true" />
               <span class="object-references__name">{{ item.name || item.id }}</span>
-              <ArrowRightOutlined
-                v-if="!disabled && !item.unavailable"
-                class="object-references__arrow"
-              />
             </a-button>
           </a-tooltip>
         </div>
@@ -118,11 +113,6 @@ const remaining = computed(() => props.value.items.slice(3))
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
-}
-.object-references__arrow {
-  flex: none;
-  font-size: 12px;
-  color: var(--ant-color-text-tertiary);
 }
 .object-references__more.ant-btn {
   padding: 0;

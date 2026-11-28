@@ -8,9 +8,10 @@ export function useObjectDashboardLayout(value: Ref<DashboardValue>, editing: Re
   const container = ref<HTMLElement>()
   const { width } = useElementSize(container)
   const heights = shallowRef<Record<string, number>>({})
-  const narrow = computed(() => width.value > 0 && width.value < 480)
-  const displayed = computed(() => editing.value || (saved.value && !narrow.value)
-    ? value.value : objectReadingDashboard(value.value, heights.value, narrow.value))
+  const narrow = computed(() => width.value > 0 && width.value < 640)
+  const displayed = computed(() => narrow.value
+    ? objectReadingDashboard(value.value, heights.value, true)
+    : editing.value || saved.value ? value.value : objectReadingDashboard(value.value, heights.value))
   function measure(id: string, height: number) {
     const pixels = Math.ceil(height)
     if (heights.value[id] !== pixels) heights.value = { ...heights.value, [id]: pixels }

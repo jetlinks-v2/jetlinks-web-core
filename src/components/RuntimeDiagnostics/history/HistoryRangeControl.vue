@@ -17,10 +17,11 @@ import { CalendarOutlined, DownOutlined } from '@ant-design/icons-vue'
 import { useI18n } from 'vue-i18n'
 import { ConditionDateRangeValueEditor } from '../../ConditionFilter/value-editors'
 import type { TimeWindow } from '../types'
+import { historyRangeSeconds } from './range'
 const props = defineProps({ range: { type: Object as PropType<TimeWindow>, required: true } })
 const emit = defineEmits<{ (event: 'change', range: TimeWindow): void }>()
 const { t } = useI18n(), open = ref(false)
-const durations = [15 * 60, 3600, 6 * 3600, 24 * 3600]
+const durations = historyRangeSeconds
 const preset = computed(() => durations.find(seconds => seconds === props.range.relativeSeconds))
 const label = computed(() => preset.value ? t(`runtimeDiagnostics.range.${preset.value}`) : `${dayjs(props.range.from).format('MM-DD HH:mm')} – ${dayjs(props.range.to).format('MM-DD HH:mm')}`)
 let emitted = ''

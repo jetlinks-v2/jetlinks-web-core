@@ -26,12 +26,12 @@ function setInput(id: string, value: unknown) { input.value = { ...input.value, 
     <div v-else class="object-operation__confirmation">
       <strong>{{ prepared.summary || member.name }}</strong>
       <span v-if="target">{{ t('target') }}：{{ target.name || target.id }}</span>
-      <ObjectDataView :value="prepared.request.input" compact />
+      <ObjectDataView :value="prepared.request.input" default-expanded compact />
     </div>
     <a-alert v-if="failed" :message="t('actionFailed')" type="error" show-icon />
     <a-alert v-if="warning" :message="t('actionWarning')" type="warning" show-icon />
     <a-alert v-else-if="completed" :message="t('accepted')" type="info" show-icon />
-    <ObjectDataView v-if="result !== undefined" :value="result" compact />
+    <ObjectDataView v-if="result !== undefined" :value="result" default-expanded compact />
     <a-space>
       <a-button v-if="!prepared" type="primary" :loading="busy" @click="prepare">{{ t('run') }}</a-button>
       <a-button v-else type="primary" :loading="busy" @click="execute">{{ t('confirm') }}</a-button>
