@@ -1,0 +1,40 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Inline save feedback regression</title></head><body><div id="app"></div>
+<script type="module">
+import { createApp, h, reactive, ref } from 'vue'
+import { createI18n } from 'vue-i18n'
+import Antd from 'ant-design-vue'
+import * as icons from '@ant-design/icons-vue'
+import InputEditable from '../src/components/Editable/InputEditable.vue'
+import Scope from '../../modules/device-manager-ui/components/IotDeviceScopeCell.vue'
+import coreZh from '../src/locales/lang/zh.json'
+import deviceZh from '../../modules/device-manager-ui/locales/lang/zh.json'
+import 'ant-design-vue/dist/reset.css'
+import '../src/style/components.less'
+const i18n = createI18n({ legacy:false, flatJson:true, locale:'zh', messages:{ zh:{...coreZh,...deviceZh} } })
+const App = { setup() {
+  const name=ref('测试设备'), area=ref(['a']), groups=ref(['a']), outcome=ref('success'), finish=ref(), requests=ref(0)
+  const options=[{title:'生产一区',value:'a'},{title:'生产二区',value:'b'}]
+  async function save(apply) {
+    requests.value++
+    const result=outcome.value
+    await new Promise(resolve=>{finish.value=resolve})
+    finish.value=undefined
+    if(result==='failure')throw Error('模拟失败，请重试')
+    apply()
+    return true
+  }
+  const field=(kind,label,value)=>h('div',{class:'field'},[h('span',label),h(Scope,{kind,text:value.value.map(id=>options.find(item=>item.value===id)?.title).join(' / '),value:value.value,options,allowed:true,disabled:false,loading:false,loadError:'',save:ids=>save(()=>value.value=ids)})])
+  return()=>h('main',[
+    h('h1','原位保存反馈'),h('p','本地模拟回执，不调用设备接口。'),
+    h('label',['模拟结果 ',h('select',{'aria-label':'模拟结果',value:outcome.value,onChange:e=>outcome.value=e.target.value},[h('option',{value:'success'},'成功'),h('option',{value:'failure'},'失败')])]),
+    h('section',[
+      h('div',{class:'field'},[h('span','名称'),h(InputEditable,{value:name.value,label:'编辑测试名称',saveFeedback:true,trigger:'text',save:value=>save(()=>name.value=value)})]),
+      field('area','空间',area),field('group','分组',groups),h('span',{class:'neighbor'},'相邻资料保持原位')]),
+    h('button',{disabled:!finish.value,onClick:()=>finish.value?.()},'返回模拟结果'),
+    h('output',{role:'status'},`模拟请求 ${requests.value} 次${finish.value?' · 等待返回':''}`)])
+} }
+createApp(App).use(Antd).use(i18n).component('AIcon',{props:['type','spin'],setup:p=>()=>h(icons[p.type]||icons.QuestionOutlined,{spin:p.spin})}).mount('#app')
+</script>
+<style>
+body{margin:0;font:14px Arial,sans-serif;background:#f5f6f8;--jet-theme-primary:#1677ff;--jet-theme-success:#52c41a;--jet-theme-bg-container:#fff;--jet-theme-text-secondary:#666;--jet-theme-border-secondary:#e5e7eb;--line:#e5e7eb;--r-2:4px;--space-2:8px;--space-4:16px;--space-5:20px;--space-6:24px}main{padding:24px}h1{font-size:20px}section{display:flex;flex-wrap:wrap;align-items:center;gap:24px;margin:24px 0;padding:24px;background:white;border:1px solid var(--line)}.field{display:flex;align-items:center;gap:8px;min-width:0}.field>span:first-child,.neighbor{color:#666;font-size:12px}button,select{font:inherit}output{display:block;margin-top:16px}
+</style></body></html>

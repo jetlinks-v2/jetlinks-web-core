@@ -37,7 +37,7 @@ export function useInlineEditSurface(options: {
     const text = view.getComputedStyle(root)
     let zIndex = 1000
     for (let parent = root.parentElement; parent; parent = parent.parentElement) zIndex = Math.max(zIndex, (parseInt(view.getComputedStyle(parent).zIndex) || 0) + 1)
-    const next: CSSProperties = { left:`${position.left}px`, top:`${position.top}px`, zIndex, fontFamily:text.fontFamily, fontSize:text.fontSize, fontWeight:text.fontWeight, lineHeight:text.lineHeight, color:text.color, direction:text.direction as CSSProperties['direction'] }
+    const next: CSSProperties = { '--inline-edit-anchor-width':`${anchor.width}px`, left:`${position.left}px`, top:`${position.top}px`, zIndex, fontFamily:text.fontFamily, fontSize:text.fontSize, fontWeight:text.fontWeight, lineHeight:text.lineHeight, color:text.color, direction:text.direction as CSSProperties['direction'] }
     if (Object.entries(next).some(([key, value]) => style.value[key as keyof CSSProperties] !== value)) style.value = next
     floating.value = position.floating
     ready.value = true
