@@ -37,6 +37,23 @@ export interface ObjectPropertyMetadata {
   valueType: ObjectValueType
   expands?: Record<string, unknown> & { semanticRole?: string; semanticTypes?: string[]; reference?: PropertyReferenceMapping; edit?: PropertyEditMapping }
 }
+/** References to read-only commands in the same logical source; relation owns the wire contract. */
+export interface ObjectDataAccess {
+  history?: string
+  aggregate?: string
+  operations: Array<{ id: string; name: string; valueType: ObjectValueType }>
+  pageSize: number
+  /** Source-native time grouping, using its declared zone; explicit zone buckets require a separate source contract. */
+  groupByTime?: { column: string; timeZone: string }
+}
+export type ObjectDataQuery = {
+  dataMode: 'history'
+  from: number
+  to: number
+  pageIndex: number
+  pageSize: number
+} | { dataMode: 'aggregate'; aggregationQuery: import('../types/aggregation').AggregationQueryParam }
+export interface ObjectDataSample { timestamp: number; value: unknown }
 export interface ObjectFunctionMetadata {
   id: string
   name?: string
@@ -68,6 +85,8 @@ export interface ObjectMember {
 }
 export interface ObjectMemberPresentation {
   ref: Omit<ObjectMemberRef, 'type'>
+  label?: () => string
+  /** Receives { member, value }: one target's raw output, including arrays; the host owns read state. */
   component?: Component
   editor?: Component
 }

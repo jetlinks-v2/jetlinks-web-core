@@ -2,6 +2,7 @@ import { getDataCapabilityRequest } from '../data-capability/request'
 import type { CapabilityContext } from '../data-capability/types'
 import type { ObjectSpec } from '../types/relation'
 import type { ObjectProviderModel, ObjectReference } from './types'
+import type { RelationObjectType } from '../types/relation'
 
 /** All calls retain the host's request identity, locale and deployment context. */
 export function objectCapabilitiesApi(context: CapabilityContext) {
@@ -14,6 +15,7 @@ export function objectCapabilitiesApi(context: CapabilityContext) {
   }
   const root = (object: ObjectReference) => `/relation/objects/${part(object.type)}/${part(object.id)}`
   return {
+    types: (signal?: AbortSignal) => read<RelationObjectType[]>(http.get('/relation/types', undefined, { signal, hiddenError: true })),
     /** Existing source query applies its own asset scope; do not add a provider access preflight. */
     objects: async (type: string, ids: string[], signal?: AbortSignal) => {
       const page = await read<{ data: Array<{ id: string; name?: string }> }>(http.post('/relation/objects/_query', {
@@ -21,8 +23,18 @@ export function objectCapabilitiesApi(context: CapabilityContext) {
       }, { signal, hiddenError: true }))
       return page.data
     },
-    models: (type: string, id?: string, signal?: AbortSignal) => read<ObjectProviderModel[]>(http.get(
-      `/relation/objects/${part(type)}${id === undefined ? '' : `/${part(id)}`}/providers`, undefined, { signal, hiddenError: true })),
+    models: async (type: string, id?: string, signal?: AbortSignal) => {
+      const models = await read<ObjectProviderModel[]>(http.get(
+        `/relation/objects/${part(type)}${id === undefined ? '' : `/${part(id)}`}/providers`, undefined, { signal, hiddenError: true }))
+      if (!models.some(source => source.identity && (!source.name || source.name === source.providerId))) return models
+      try {
+        const types = await read<RelationObjectType[]>(http.get('/relation/types', undefined, { signal, hiddenError: true }))
+        const objectType = types.find(item => item.id === type)
+        const label = objectType?.i18nName || objectType?.name
+        return label ? models.map(source => source.identity && (!source.name || source.name === source.providerId)
+          ? { ...source, name: label } : source) : models
+      } catch { return models }
+    },
     properties: (object: ObjectReference, providerId: string, keys: string[], signal?: AbortSignal) =>
       read<Array<{ property: string; value: unknown; providerId: string }>>(http.post(`${root(object)}/properties/_query`, { keys },
         { params: { providerId }, signal, hiddenError: true })),

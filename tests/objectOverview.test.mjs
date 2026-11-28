@@ -18,15 +18,56 @@ function load(filename, overrides = {}, cache = new Map()) {
   const code = transformSync(source, { loader: 'ts', format: 'cjs' }).code
   new Function('require', 'module', 'exports', code)(id => {
     if (id in overrides) return overrides[id]
-    if (id === 'vue-i18n') return { useI18n: () => ({ t: key => key }) }
-    if (id === '@ant-design/icons-vue') return Object.fromEntries(['ThunderboltOutlined', 'InfoCircleOutlined', 'PlusOutlined', 'EditOutlined', 'ReloadOutlined', 'MoreOutlined', 'ArrowRightOutlined'].map(key => [key, () => null]))
-    if (id === './ObjectInputValue.vue') return { __esModule: true, default: () => null }
+    if (id === 'vue-i18n') return { useI18n: () => ({ t: (key, params) => key === 'source' && params?.name ? `source ${params.name}` : key }) }
+    if (id === '@ant-design/icons-vue') return Object.fromEntries(['ThunderboltOutlined', 'InfoCircleOutlined', 'HistoryOutlined', 'DownOutlined', 'PlusOutlined', 'EditOutlined', 'ReloadOutlined', 'MoreOutlined', 'ArrowRightOutlined'].map(key => [key, () => null]))
+    if (['./ObjectInputValue.vue', './ObjectDataExplorer.vue', './ObjectDataTools.vue'].includes(id)) return { __esModule: true, default: () => null }
     if (id.startsWith('.')) return load(resolve(dirname(filename), id.endsWith('.vue') ? id : `${id}.ts`), overrides, cache)
     return require(id)
   }, module, module.exports)
   cache.set(filename, module.exports); return module.exports
 }
 const Content = load(resolve(root, 'ObjectContentGroup.vue')).default
+test('unnamed identity sources use localized type declarations without changing provider routing or declared names', async () => {
+  const providers = [{ providerId: 'sample-source', name: 'sample-source', identity: true, metadata: {} }, { providerId: 'metrics', name: 'Owner supplied label', identity: false, metadata: {} }]
+  const calls = []
+  const { objectCapabilitiesApi } = load(resolve(root, '../../object-capability/api.ts'), {
+    '../data-capability/request': { getDataCapabilityRequest: () => ({ get: async url => { calls.push(url); return { status: 200, result: url === '/relation/types' ? [{ id: 'sample', name: 'Sample', i18nName: 'Localized type' }] : providers } } }) }
+  })
+  const models = await objectCapabilitiesApi({}).models('sample', 'A')
+  assert.equal(models[0].name, 'Localized type')
+  assert.equal(models[0].providerId, 'sample-source')
+  assert.equal(models[1].name, 'Owner supplied label')
+  assert.equal(providers[0].name, 'sample-source')
+  assert.deepEqual(calls, ['/relation/objects/sample/A/providers', '/relation/types'])
+  providers[0].name = 'Explicit name'; calls.length = 0
+  assert.equal((await objectCapabilitiesApi({}).models('sample', 'A'))[0].name, 'Explicit name')
+  assert.deepEqual(calls, ['/relation/objects/sample/A/providers'])
+})
+
+test('an unavailable type label cannot prevent model reading', async () => {
+  const providers = [{ providerId: 'sample', name: 'sample', identity: true, metadata: {} }]
+  const { objectCapabilitiesApi } = load(resolve(root, '../../object-capability/api.ts'), {
+    '../data-capability/request': { getDataCapabilityRequest: () => ({ get: async url => { if (url === '/relation/types') throw Error('unavailable'); return { status: 200, result: providers } } }) }
+  })
+  assert.deepEqual(await objectCapabilitiesApi({}).models('sample', 'A'), providers)
+})
+test('shared overview messages switch languages without missing keys or losing interpolation', () => {
+  const { createI18n } = require('vue-i18n')
+  const { objectOverviewMessages: messages } = load(resolve(root, 'messages.ts'))
+  const i18n = createI18n({ legacy: false, locale: 'zh', fallbackLocale: false, messages })
+  const expected = { zh: '否', en: 'No', ja: 'いいえ', 'zh-CN': '否', 'en-US': 'No', 'zh-TW': '否', 'ja-JP': 'いいえ' }
+  for (const [locale, falseValue] of Object.entries(expected)) {
+    assert.deepEqual(Object.keys(messages[locale]).sort(), Object.keys(messages.zh).sort(), locale)
+    i18n.global.locale.value = locale
+    assert.equal(i18n.global.t('falseValue'), falseValue)
+    assert.match(i18n.global.t('source', { name: 'Source-A' }), /Source-A/)
+    for (const key of Object.keys(messages[locale])) {
+      const translated = i18n.global.t(key, { name: 'Source-A', id: 'A-1', count: 2 })
+      assert.equal(i18n.global.te(key, locale), true, `${locale}.${key}`)
+      assert.doesNotMatch(translated, /\{(?:name|id|count)\}/, `${locale}.${key}`)
+    }
+  }
+})
 test('enum labels accept serialized numeric keys while retaining zero, false and wrapped values', async t => {
   const Data = load(resolve(root, 'ObjectDataView.vue')).default
   const value = vue.ref(0)
@@ -56,9 +97,508 @@ test('reference display overrides a plain value presentation and forwards target
   preview.value = true; await flush()
   assert.equal(h.button('Water supply').props.disabled, true, 'layout editing retains the reference label and disables navigation')
 })
+test('shared values distinguish false, zero, empty text and missing data without leaking structured passwords', async t => {
+  const Data = load(resolve(root, 'ObjectDataView.vue')).default
+  const value = vue.ref(false), metadata = vue.ref({ type: 'boolean' })
+  const h = render(t, () => () => vue.h(Data, { value: value.value, metadata: metadata.value }))
+  assert.equal(h.text(), 'falseValue')
+  value.value = true; await flush(); assert.equal(h.text(), 'trueValue')
+  value.value = 0; await flush(); assert.equal(h.text(), '0')
+  value.value = ''; await flush(); assert.equal(h.text(), 'emptyValue')
+  value.value = undefined; await flush(); assert.equal(h.text(), 'unknown')
+  metadata.value = { type: 'password' }; value.value = { secret: 'must-stay-hidden' }; await flush()
+  assert.equal(h.text(), '••••••')
+  assert.equal(h.all().some(node => node.type === 'details'), false)
+})
+
+test('structured values disclose large collections progressively instead of silently truncating them', async t => {
+  const Data = load(resolve(root, 'ObjectDataView.vue')).default
+  const h = render(t, () => () => vue.h(Data, { value: Array.from({ length: 45 }, (_, index) => `item-${index}`) }))
+  assert.doesNotMatch(h.text(), /item-0/)
+  h.all().find(node => node.type === 'details').props.onToggle({ target: { open: true } }); await flush()
+  assert.match(h.text(), /item-19/); assert.doesNotMatch(h.text(), /item-20/)
+  h.button('showMore').props.onClick(); await flush()
+  h.button('showMore').props.onClick(); await flush()
+  assert.match(h.text(), /item-44/)
+  assert.equal(h.button('showMore'), undefined)
+})
+
+test('failed source reads cannot be replaced by a ready-only custom presentation', async t => {
+  const entry = { selection: { member: { type: 'sample', providerId: 'source', kind: 'property', id: 'value' } },
+    member: { name: 'Value', sourceName: 'Source', ref: { kind: 'property' }, metadata: { valueType: { type: 'double' }, expands: { semanticRole: 'value' } } },
+    state: { status: 'failed' }, presentation: { component: () => vue.h('span', 'FAKE-NORMAL') } }
+  const h = render(t, () => () => vue.h(Content, { entries: [entry], appearance: 'section', runtime: () => undefined }))
+  assert.doesNotMatch(h.text(), /FAKE-NORMAL/)
+  assert.match(h.text(), /loadFailed/)
+})
+
+test('a missing observation stays missing even when a custom presenter is registered', async t => {
+  const entry = { selection: { member: { type: 'sample', providerId: 'source', kind: 'property', id: 'reading' } },
+    member: { name: 'Reading', sourceName: 'Source', ref: { kind: 'property' }, metadata: { valueType: { type: 'double' }, expands: { semanticRole: 'value' } } },
+    state: { status: 'ready', value: null }, presentation: { component: () => vue.h('span', 'FAKE-NORMAL') } }
+  const h = render(t, () => () => vue.h(Content, { entries: [entry], appearance: 'section', runtime: () => undefined }))
+  assert.doesNotMatch(h.text(), /FAKE-NORMAL/)
+  assert.match(h.text(), /noReading/)
+})
+
+test('standard reading groups by declarations and keeps observation evidence apart from editable data', async t => {
+  const Reading = load(resolve(root, 'ObjectReadingView.vue')).default
+  const entries = [
+    ['plain', 'data', 0], ['reading', 'value', 0], ['state', 'status', false],
+  ].map(([id, role, value]) => ({ selection: { member: { type: 'sample', providerId: 'source', kind: 'property', id } },
+    member: { name: id, sourceName: 'Source', ref: { kind: 'property' }, metadata: { valueType: { type: 'double' }, expands: { semanticRole: role } } }, state: { status: 'ready', value } }))
+  const h = render(t, () => () => vue.h(Reading, { entries, runtime: () => undefined }))
+  assert.ok(h.text().indexOf('reading') < h.text().indexOf('plain'))
+  assert.match(h.text(), /timeUnavailable/)
+  assert.match(h.text(), /falseValue/)
+  assert.equal(h.all().filter(node => node.type === 'article' || node.type === 'li').length, 3)
+  assert.equal(h.all().filter(node => node.type === 'ul').length, 1)
+  assert.equal(h.all().some(node => node.props.role === 'columnheader'), false)
+  assert.doesNotMatch(h.text(), /currentValue|observation/)
+  assert.equal(h.text().match(/timeUnavailable/g)?.length, 1, 'missing collection time belongs to the observation group')
+})
+
+test('headerless readings preserve units, declared states, dates, missing data and retry', async t => {
+  let retries = 0
+  const rows = [
+    ['Utilization', 0, { type: 'double', unit: '%' }],
+    ['Connectivity', false, { type: 'boolean', falseText: 'Disconnected' }],
+    ['State', 0, { type: 'enum', elements: [{ value: '0', text: 'Offline' }] }],
+    ['Sample time', '2026-11-27T08:00:00', { type: 'date' }],
+    ['Missing', null, { type: 'double' }],
+    ['Failed', undefined, { type: 'double' }, 'failed'],
+  ].map(([id, value, valueType, status = 'ready']) => ({ selection: { member: { type: 'sample', providerId: 'source', kind: 'property', id }, binding: { source: { capabilityId: id } } }, member: { name: id, sourceName: 'Source', ref: { kind: 'property' }, metadata: { valueType, expands: { semanticRole: 'value' } } }, state: { status, value } }))
+  const h = render(t, () => () => vue.h(Content, { entries: rows, appearance: 'section', runtime: () => undefined, onRetry: () => retries++ }))
+  assert.equal(h.all().filter(node => node.type === 'li').length, 6)
+  assert.equal(h.all().some(node => node.type === 'table'), false)
+  for (const value of ['0', '%', 'Disconnected', 'Offline', '2026-11-27', 'noReading']) assert.ok(h.text().includes(value), value)
+  h.button('retry').props.onClick(); assert.equal(retries, 1)
+})
+
+test('continuous defaults preserve explicit query bindings and do not duplicate field editor actions', () => {
+  const { objectReadingSelections, currentObjectSelection, dashboardSelections } = load(resolve(root, '../../object-capability/dashboard.ts'))
+  const member = (kind, id, metadata) => ({ ref: { type: 'sample', providerId: 'source', kind, id }, name: id, sourceName: 'Source', metadata })
+  const property = member('property', 'value', { valueType: { type: 'double' }, expands: { edit: { providerId: 'source', command: 'save', inputPath: ['value'] } } })
+  const query = member('query', 'requiresParameters', { inputs: [{ id: 'scope', valueType: { type: 'string' } }] })
+  const editor = member('action', 'save', {}), action = member('action', 'inspect', {})
+  const defaults = objectReadingSelections([property, query, editor, action])
+  assert.deepEqual(defaults.map(item => item.member.id).sort(), ['inspect', 'value'])
+  const explicit = currentObjectSelection(query)
+  assert.equal(dashboardSelections({ components: [{ id: 'configured-query', type: 'object-data', componentProps: { selections: [explicit] } }] })[0].member.id, 'requiresParameters')
+})
+
+test('reading keeps declaration order while values become available or fail', async t => {
+  const Reading = load(resolve(root, 'ObjectReadingView.vue')).default
+  const entries = [['Missing', null, 'Unavailable source'], ['Zero', 0, 'Live source'], ['False', false, 'Live source']].map(([name, value, source]) => ({
+    selection: { member: { type: 'sample', providerId: source, kind: 'property', id: name } },
+    member: { name, sourceName: source, ref: { type: 'sample', providerId: source, kind: 'property', id: name }, metadata: { valueType: { type: typeof value === 'boolean' ? 'boolean' : 'double' } } },
+    state: { status: 'ready', value },
+  }))
+  const current = vue.shallowRef(entries)
+  const h = render(t, () => () => vue.h(Reading, { entries: current.value, runtime: () => undefined }))
+  assert.match(h.text(), /Zero/)
+  assert.match(h.text(), /False/)
+  assert.equal(h.button('showAll'), undefined)
+  assert.ok(h.text().indexOf('Missing') < h.text().indexOf('Zero'))
+  assert.ok(h.text().indexOf('Zero') < h.text().indexOf('False'))
+  assert.match(h.text(), /unknown/); assert.match(h.text(), /Unavailable source/)
+  assert.match(h.text(), /Live source/)
+  assert.equal(h.all().filter(node => node.type === 'article').length, 3)
+  assert.equal(entries[0].member.name, 'Missing', 'display ordering must not mutate the source model')
+  current.value = entries.map((entry, index) => ({ ...entry, state: index === 0 ? { status: 'ready', value: 7 } : { status: 'failed' } }))
+  await flush()
+  assert.ok(h.text().indexOf('Missing') < h.text().indexOf('Zero'))
+  assert.ok(h.text().indexOf('Zero') < h.text().indexOf('False'))
+})
+
+test('record content spans the reading layout without reserving an empty side column', async t => {
+  const Reading = load(resolve(root, 'ObjectReadingView.vue')).default
+  const visible = vue.ref(false)
+  const entries = [{ selection: { member: { type: 'sample', providerId: 'source', kind: 'property', id: 'name' } },
+    member: { name: 'Name', sourceName: 'Source', ref: { kind: 'property' }, metadata: { valueType: { type: 'string' } } },
+    state: { status: 'ready', value: 'Original value' } }]
+  const h = render(t, () => () => vue.h(Reading, { entries, runtime: () => undefined },
+    visible.value ? { context: () => vue.h('records', 'Context content') } : {}))
+  const hasSide = () => h.all().some(node => String(node.props.class || '').split(' ').includes('object-reading__context'))
+  const hasRecords = () => h.all().some(node => String(node.props.class || '').split(' ').includes('object-reading__records'))
+  assert.equal(hasSide(), false)
+  assert.equal(hasRecords(), false)
+  visible.value = true; await flush(); assert.equal(hasSide(), false); assert.equal(hasRecords(), true); assert.match(h.text(), /Context content/)
+  visible.value = false; await flush(); assert.equal(hasRecords(), false); assert.match(h.text(), /Original value/)
+})
+
+test('reading sections append batches at the scroll boundary and retain the final missing value', async t => {
+  let intersect
+  const Group = load(resolve(root, 'ObjectContentGroup.vue'), {
+    '@vueuse/core': { ...require('@vueuse/core'), useIntersectionObserver: (_target, callback) => { intersect = callback; return { stop() {} } } },
+  }).default
+  const entries = Array.from({ length: 45 }, (_, index) => {
+    const ref = { type: 'sample', providerId: 'source', kind: 'property', id: `reading-${index}` }
+    return { selection: { member: ref, binding: { source: { capabilityId: `reading-${index}` } } },
+      member: { ref, name: `Reading ${index}`, sourceName: 'Source', metadata: { valueType: { type: 'double' }, expands: { semanticRole: 'value' } } },
+      state: { status: 'ready', value: index === 44 ? null : index } }
+  })
+  const h = render(t, () => () => vue.h(Group, { entries, appearance: 'section', runtime: () => undefined }))
+  const count = () => h.all().filter(node => node.type === 'li').length
+  assert.equal(count(), 20)
+  intersect([{ isIntersecting: false }]); await flush(); assert.equal(count(), 20)
+  intersect([{ isIntersecting: true }]); await flush(); assert.equal(count(), 40)
+  intersect([{ isIntersecting: true }]); await flush(); assert.equal(count(), 45)
+  assert.match(h.text(), /Reading 44/); assert.match(h.text(), /noReading/)
+  assert.equal(h.all().some(node => node.props.class === 'object-content-group__tail'), false)
+  assert.equal(h.button('showAll'), undefined)
+  assert.equal(entries.length, 45)
+})
+
+test('reading restores enough rows for a remembered scroll position', async t => {
+  const entries = Array.from({ length: 70 }, (_, id) => ({ selection: { member: { type: 'sample', providerId: 'source', kind: 'property', id: String(id) } }, state: { status: 'ready', value: id } }))
+  const h = render(t, () => () => vue.h(Content, { entries, appearance: 'section', position: { top: 900, visible: 60 }, runtime: () => undefined }))
+  await flush()
+  assert.equal(h.all().filter(node => node.type === 'article').length, 60)
+  const viewport = h.all().find(node => node.props.class === 'object-content-group__viewport')
+  assert.equal(viewport.scrollTop, 900)
+})
+
+test('delayed readings cannot overwrite a remembered position with a temporary scroll height', async t => {
+  const entries = vue.ref(Array.from({ length: 70 }, (_, id) => ({ selection: { member: { type: 'sample', providerId: 'source', kind: 'property', id: String(id) } }, state: { status: 'loading' } })))
+  const positions = []
+  const h = render(t, () => () => vue.h(Content, { entries: entries.value, appearance: 'section', position: { top: 900, visible: 60 }, onPosition: value => positions.push(value), runtime: () => undefined }))
+  await flush()
+  const viewport = h.all().find(node => node.props.class === 'object-content-group__viewport')
+  viewport.props.onScroll(); await flush()
+  assert.deepEqual(positions, [])
+  entries.value = entries.value.map(entry => ({ ...entry, state: { status: 'ready', value: 0 } }))
+  await flush(); await flush()
+  assert.equal(viewport.scrollTop, 900)
+  assert.equal(h.all().filter(node => node.type === 'article').length, 60)
+  viewport.scrollTop = 950; viewport.props.onScroll()
+  assert.deepEqual(positions.at(-1), { top: 950, visible: 60 })
+})
+
+test('semantic dashboard defaults combine context above full-width readings', () => {
+  const { objectDefaultDashboard, dashboardSelections, addObjectDashboardGroup } = load(resolve(root, '../../object-capability/dashboard.ts'))
+  const members = [['reading', 'value'], ['name', 'data'], ['state', 'status']].map(([id, role]) => ({ ref: { type: 'sample', providerId: 'source', kind: 'property', id }, metadata: { valueType: { type: 'string' }, expands: { semanticRole: role } } }))
+  const value = objectDefaultDashboard(members, { data: 'Data', observations: 'Readings', status: 'Status' })
+  const [context, reading] = value.components
+  assert.equal(reading.componentProps.contentGroup, 'observations')
+  assert.deepEqual(context.componentProps.contentGroups, ['data', 'status'])
+  assert.equal(context.componentProps.collapsible, true)
+  assert.deepEqual([reading.componentProps.gridItem.x, reading.componentProps.gridItem.w], [0, 12])
+  assert.deepEqual([context.componentProps.gridItem.x, context.componentProps.gridItem.w], [0, 12])
+  assert.ok(context.componentProps.gridItem.h < reading.componentProps.gridItem.h)
+  assert.equal(reading.componentProps.gridItem.y, context.componentProps.gridItem.h)
+  assert.deepEqual(dashboardSelections(value, members).map(item => item.member.id).sort(), ['name', 'reading', 'state'])
+  assert.equal(addObjectDashboardGroup(value, 'status', { data: 'Data', actions: 'Actions' }), value)
+  assert.equal(members[0].ref.id, 'reading')
+})
+
+test('context details expand and collapse without dropping missing values', async t => {
+  const ref = { type: 'sample', providerId: 'source', kind: 'property', id: 'name' }
+  const entries = [{ selection: { member: ref }, member: { ref, name: 'Name', metadata: { valueType: { type: 'string' } } }, state: { status: 'ready', value: null } }]
+  const h = render(t, () => () => vue.h(Content, { title: 'Details', entries, collapsible: true, appearance: 'section', runtime: () => undefined }))
+  assert.equal(h.all().filter(node => node.type === 'article').length, 0)
+  h.button('expandDetails').props.onClick(); await flush()
+  assert.equal(h.all().filter(node => node.type === 'article').length, 1)
+  assert.match(h.text(), /unknown/)
+  h.button('collapseDetails').props.onClick(); await flush()
+  assert.equal(h.all().filter(node => node.type === 'article').length, 0)
+  assert.equal(entries.length, 1)
+})
+
+test('invalid persisted context groups keep explicit bindings and valid groups are unique', () => {
+  const { objectWidgetGroups, dashboardSelections } = load(resolve(root, '../../object-capability/dashboard.ts'))
+  const selection = { member: { type: 'sample', providerId: 'source', kind: 'query', id: 'query' } }
+  const widget = { id: 'saved', componentProps: { contentGroups: 'data', selections: [selection] } }
+  assert.deepEqual(objectWidgetGroups(widget), [])
+  assert.deepEqual(dashboardSelections({ components: [widget] }), [selection])
+  widget.componentProps.contentGroups = ['data', 'unknown', 'data', 'status']
+  assert.deepEqual(objectWidgetGroups(widget), ['data', 'status'])
+})
+
+test('a reading-only dashboard uses full width and actions stay below the data', () => {
+  const { objectDefaultDashboard } = load(resolve(root, '../../object-capability/dashboard.ts'))
+  const reading = { ref: { type: 'sample', providerId: 'source', kind: 'property', id: 'reading' }, metadata: { expands: { semanticRole: 'value' } } }
+  const action = { ref: { type: 'sample', providerId: 'source', kind: 'action', id: 'inspect' }, metadata: {} }
+  const value = objectDefaultDashboard([reading, action], { data: 'Data', actions: 'Actions', observations: 'Readings' })
+  const [data, operations] = value.components.map(widget => widget.componentProps.gridItem)
+  assert.deepEqual([data.x, data.y, data.w], [0, 0, 12])
+  assert.ok(data.h < 10, 'a short reading group does not reserve an empty tall card')
+  assert.deepEqual([operations.x, operations.w, operations.y], [0, 12, data.h])
+})
+
+test('reading search reaches unrendered entries and clearing restores the original reading batch', async t => {
+  const entries = Array.from({ length: 45 }, (_, index) => ({
+    selection: { member: { type: 'reservoir', providerId: 'source', kind: 'property', id: String(index) }, binding: { source: { capabilityId: String(index) } } },
+    member: { ref: { kind: 'property' }, name: `Level ${index}:`, sourceName: 'Source', metadata: { valueType: { type: 'double', unit: 'm' }, expands: { semanticRole: 'result' } } },
+    state: { status: 'ready', value: index },
+  }))
+  const h = render(t, () => () => vue.h(Content, { title: 'Data', appearance: 'section', entries, runtime: () => undefined }))
+  assert.doesNotMatch(h.text(), /Level 44:/)
+  const search = h.all().find(node => node.props['aria-label'] === 'searchReadings')
+  assert.ok(search)
+  search.props['onUpdate:value']('Level 44'); await flush()
+  assert.match(h.text(), /Level 44:/)
+  assert.doesNotMatch(h.text(), /Level 0:/)
+  search.props['onUpdate:value']('unmatched'); await flush()
+  assert.ok(h.all().some(node => node.props.description === 'noMatches'))
+  search.props['onUpdate:value'](''); await flush()
+  assert.match(h.text(), /Level 0:/)
+  assert.doesNotMatch(h.text(), /Level 44:/)
+})
+
+test('automatic updates stay batched, retain old values on failure and stop while hidden or disposed', async t => {
+  let tick, resumed = 0, paused = 0, reads = 0, fail = false, capability
+  const visibility = vue.ref('visible'), active = vue.ref(true), interval = vue.ref(2)
+  const { useObjectCapabilities } = load(resolve(root, '../../object-capability/useObjectCapabilities.ts'), {
+    '@vueuse/core': { useDocumentVisibility: () => visibility, useIntervalFn: callback => { tick = callback; return { resume: () => resumed++, pause: () => paused++ } } },
+    '../data-capability/registry': { dataCapabilityRegistry: { createRuntime: () => ({ dispose() {} }) } },
+    '../data-capability/request': { useDataCapabilityRequest: () => ({}) },
+    './api': { objectCapabilitiesApi: () => ({
+      models: async () => [{ providerId: 'source', name: 'Source', metadata: { properties: [
+        { id: 'level', valueType: { type: 'double' } }, { id: 'pressure', valueType: { type: 'double' } },
+      ] } }],
+      properties: async (_object, _provider, keys) => { reads++; assert.equal(keys.length, 2); if (fail) throw Error('unavailable'); return keys.map(property => ({ property, value: 0 })) },
+    }) }
+  })
+  const h = render(t, () => { capability = useObjectCapabilities(vue.ref({ type: 'reservoir', id: 'R' }), { active, interval }); return () => null })
+  await flush(); await flush()
+  assert.equal(reads, 1); assert.ok(resumed > 0)
+  fail = true; tick(); await flush(); await flush()
+  assert.equal(reads, 2)
+  assert.ok(Object.values(capability.values.value).every(value => value.status === 'ready' && value.value === 0 && value.refreshError))
+  visibility.value = 'hidden'; await flush(); tick(); await flush()
+  assert.equal(reads, 2)
+  visibility.value = 'visible'; active.value = false; await flush(); tick(); await flush()
+  assert.equal(reads, 2)
+  active.value = true; fail = false; await flush(); tick(); await flush(); await flush()
+  assert.equal(reads, 3)
+  assert.ok(Object.values(capability.values.value).every(value => !value.refreshError))
+  assert.ok(paused > 0)
+})
+
+test('history selection follows current members and closes when its selection disappears', async t => {
+  let selected
+  const ContentWithExplorer = load(resolve(root, 'ObjectContentGroup.vue'), {
+    './ObjectDataExplorer.vue': { __esModule: true, default: vue.defineComponent({ props: ['entry'], setup: props => () => { selected = props.entry; return null } }) },
+  }).default
+  const ref = { type: 'reservoir', providerId: 'source', kind: 'property', id: 'level' }
+  const initial = { selection: { member: ref, binding: { source: { capabilityId: 'level' } } },
+    member: { ref, name: 'Level', metadata: { valueType: { type: 'double' }, expands: { dataAccess: { history: 'history', pageSize: 20 } } } }, state: { status: 'ready', value: 1 } }
+  const entries = vue.shallowRef([initial])
+  const h = render(t, () => () => vue.h(ContentWithExplorer, { entries: entries.value, runtime: () => undefined }))
+  h.button('historyAndStats').props.onClick(); await flush()
+  assert.equal(selected, initial)
+  const current = { ...initial, member: { ...initial.member, name: 'Updated level', metadata: { ...initial.member.metadata, valueType: { type: 'double', unit: 'm' } } }, state: { status: 'ready', value: 2 } }
+  entries.value = [current]; await flush()
+  assert.equal(selected, current, 'the open panel receives the current model and value, not its opening snapshot')
+  entries.value = []; await flush()
+  assert.equal(selected, undefined, 'removing the semantic selection closes its query panel')
+  entries.value = [current]; await flush()
+  assert.equal(selected, undefined, 'reintroducing a member does not reopen a closed panel')
+})
+
+test('related reads isolate replacement runtimes without needing readiness or selection changes', async t => {
+  const ref = { type: 'reservoir', providerId: 'source', kind: 'property', id: 'level' }
+  const selection = { member: ref, object: { objectType: 'reservoir', objectSource: { source: 'fixed', value: ['R'] } }, binding: { source: { capabilityId: 'level' } } }
+  let resolveOld, oldSignal
+  const session = vue.shallowRef({ query: (_binding, { signal }) => { oldSignal = signal; return new Promise(resolve => { resolveOld = resolve }) } })
+  const { useObjectRelatedData } = load(resolve(root, '../../object-capability/useObjectRelatedData.ts'), {
+    '../data-capability/request': { useDataCapabilityRequest: () => ({}) },
+    './api': { objectCapabilitiesApi: () => ({ models: async () => [{ providerId: 'source', metadata: { properties: [{ id: 'level' }] } }] }) },
+  })
+  let related
+  render(t, () => { related = useObjectRelatedData(vue.ref([selection]), vue.ref(true), () => session.value); return () => null })
+  await flush()
+  assert.equal(oldSignal.aborted, false)
+  let resolveNew, reads = 0
+  session.value = { query: () => { reads++; return new Promise(resolve => { resolveNew = resolve }) } }
+  await flush()
+  assert.equal(oldSignal.aborted, true, 'replacing the runtime cancels its pending read')
+  assert.equal(reads, 1)
+  const value = number => ({ data: { values: [{ object: { type: 'reservoir', id: 'R' }, value: number }], limited: false } })
+  resolveOld(value(1)); await flush()
+  assert.equal(Object.values(related.states.value)[0].status, 'loading', 'a late old runtime cannot supply the new context')
+  resolveNew(value(2)); await flush()
+  assert.equal(Object.values(related.states.value)[0].value.values[0].value, 2)
+  session.value = undefined; await flush()
+  assert.deepEqual(related.states.value, {}, 'removing the runtime clears its old results without attempting an unavailable query')
+  assert.equal(reads, 1)
+})
+
+test('related auto updates deduplicate bindings, keep old results and discard cancelled background responses', async t => {
+  let tick, reads = 0, models = 0, fail = false, delay = false, complete, signal, related
+  const visibility = vue.ref('visible'), active = vue.ref(true), interval = vue.ref(2)
+  const member = { type: 'reservoir', providerId: 'ledger', kind: 'property', id: 'level' }
+  const selection = { member, object: { objectType: 'reservoir', objectId: 'R' }, binding: { version: 1, source: { capabilityId: 'level', version: 1 } } }
+  const { useObjectRelatedData } = load(resolve(root, '../../object-capability/useObjectRelatedData.ts'), {
+    '@vueuse/core': { useDocumentVisibility: () => visibility, useIntervalFn: callback => { tick = callback; return { resume() {}, pause() {} } } },
+    '../data-capability/request': { useDataCapabilityRequest: () => ({}) },
+    './api': { objectCapabilitiesApi: () => ({ models: async () => { models++; return [{ providerId: 'ledger', name: 'Ledger', metadata: { properties: [{ id: 'level', valueType: { type: 'double' } }] } }] } }) }
+  })
+  const runtime = { async query(_binding, options) {
+    reads++; signal = options.signal
+    if (delay) return new Promise(resolve => { complete = resolve })
+    if (fail) throw Error('unavailable')
+    return { data: { values: [{ object: { type: 'reservoir', id: 'R' }, value: 0 }], limited: false } }
+  } }
+  const h = render(t, () => {
+    related = useObjectRelatedData(vue.ref([selection, selection]), vue.ref(true), () => runtime, { active, interval })
+    return () => null
+  })
+  await flush(); await flush()
+  assert.equal(reads, 1); assert.equal(models, 1)
+  fail = true; tick(); await flush(); await flush()
+  assert.equal(reads, 2); assert.equal(models, 1, 'polling does not reload the type catalog')
+  assert.equal(Object.values(related.states.value)[0].value.values[0].value, 0)
+  assert.equal(Object.values(related.states.value)[0].refreshError, true)
+  fail = false; delay = true; tick(); await flush(); tick(); await flush()
+  assert.equal(reads, 3, 'a pending update cannot overlap another tick')
+  visibility.value = 'hidden'; await flush()
+  assert.equal(signal.aborted, true)
+  complete({ data: { values: [{ value: 99 }], limited: false } }); await flush(); await flush()
+  assert.equal(Object.values(related.states.value)[0].value.values[0].value, 0, 'cancelled reads cannot replace the retained value')
+  tick(); await flush(); assert.equal(reads, 3)
+  visibility.value = 'visible'; active.value = false; await flush(); tick(); await flush()
+  assert.equal(reads, 3)
+  active.value = true; delay = false; await flush(); tick(); await flush(); await flush()
+  assert.equal(reads, 4); assert.equal(Object.values(related.states.value)[0].refreshError, undefined)
+})
+
+test('history defaults to a chart, switches to the same raw rows and uses a table for nonnumeric values', async t => {
+  const charts = vue.ref([{ key: 'series' }]), samples = vue.ref([{ timestamp: 100, value: 0, object: { type: 'sample', id: 'A' } }])
+  let reads = 0, retries = 0
+  const refs = { access: vue.ref({ history: 'past' }), analysis: vue.ref(), objectTypes: vue.ref([]), valueType: vue.ref(), range: vue.ref(),
+    mode: vue.ref('history'), operation: vue.ref(), intervalSeconds: vue.ref(1), input: vue.ref({}), busy: vue.ref(false), failed: vue.ref(false),
+    hasMore: vue.ref(false), result: vue.ref({ values: [{ object: { type: 'sample', id: 'A' } }] }), charts, samples,
+    query: () => reads++, retry: () => retries++ }
+  const Explorer = load(resolve(root, 'ObjectDataExplorer.vue'), {
+    '../JlDrawerShell/index.vue': { __esModule: true, default: vue.defineComponent({ setup: (_props, { slots }) => () => slots.default?.() }) },
+    '../RuntimeDiagnostics': { HistoryMetricCharts: () => vue.h('history-chart'), HistoryRangeControl: () => null },
+    '../../object-capability/useObjectDataQuery': { useObjectDataQuery: () => refs },
+  }).default
+  const h = render(t, () => () => vue.h(Explorer, { entry: { member: { name: 'Level' } }, runtime: () => undefined }))
+  assert.ok(h.all().some(node => node.type === 'history-chart'))
+  assert.equal(h.all().some(node => node.type === 'data-table'), false)
+  const switchView = h.all().find(node => node.props['aria-label'] === 'dataDisplay')
+  switchView.props.onChange('table'); await flush()
+  assert.equal(h.all().some(node => node.type === 'history-chart'), false)
+  const table = h.all().find(node => node.type === 'data-table')
+  assert.equal(table.props.dataSource[0].value, 0)
+  assert.equal(table.props.columns.at(-1).title, 'Level')
+  assert.equal(reads, 0, 'presentation changes do not reload or aggregate source data')
+  switchView.props.onChange('chart'); await flush()
+  assert.ok(h.all().some(node => node.type === 'history-chart'))
+  charts.value = []; samples.value[0].value = false; await flush()
+  assert.equal(h.all().some(node => node.type === 'history-chart'), false)
+  assert.equal(h.all().find(node => node.type === 'data-table').props.dataSource[0].value, false)
+  refs.hasMore.value = true; await flush()
+  assert.ok(h.button('showMore'))
+  refs.failed.value = true; await flush()
+  assert.equal(h.button('showMore'), undefined, 'a failed continuation has one retry action')
+  h.button('retry').props.onClick(); assert.equal(retries, 1)
+})
+
+test('native query options show their own loading and retry without querying data', async t => {
+  let catalogRetries = 0, queries = 0
+  const refs = { access: vue.ref(), analysis: vue.ref({ objectTypes: ['category'] }),
+    fields: vue.ref([{ id: 'category', name: 'Category', valueType: { type: 'string' } }]), objectTypes: vue.ref([]),
+    typesBusy: vue.ref(true), typesFailed: vue.ref(false), valueType: vue.ref(), range: vue.ref(),
+    mode: vue.ref('aggregate'), operation: vue.ref(), intervalSeconds: vue.ref(1), input: vue.ref({}),
+    busy: vue.ref(false), failed: vue.ref(false), hasMore: vue.ref(false), result: vue.ref(), charts: vue.ref([]), samples: vue.ref([]),
+    query: () => queries++, retryTypes: () => catalogRetries++, changeRange: () => {} }
+  const Explorer = load(resolve(root, 'ObjectDataExplorer.vue'), {
+    '../JlDrawerShell/index.vue': { __esModule: true, default: vue.defineComponent({ setup: (_props, { slots }) => () => slots.default?.() }) },
+    '../RuntimeDiagnostics': { HistoryMetricCharts: () => null, HistoryRangeControl: () => vue.h('range-control') },
+    '../../object-capability/useObjectDataQuery': { useObjectDataQuery: () => refs },
+  }).default
+  const h = render(t, () => () => vue.h(Explorer, { entry: { member: { name: 'Scope' } }, runtime: () => undefined }))
+  assert.equal(h.all().filter(node => node.type === 'range-control').length, 1)
+  assert.equal(h.all().find(node => node.type === 'ASelect').props.loading, true)
+  assert.equal(h.button('queryData').props.loading, false, 'option loading does not become a data request')
+  refs.typesBusy.value = false; refs.typesFailed.value = true; await flush()
+  assert.equal(h.all().find(node => node.type === 'AAlert').props.message, 'queryOptionsFailed')
+  h.button('retry').props.onClick(); assert.equal(catalogRetries, 1); assert.equal(queries, 0)
+  h.all().find(node => node.type === 'AForm').props.onFinish(); assert.equal(queries, 1,
+    'option lookup does not invent required-input rules; the source still validates native query parameters')
+  refs.typesFailed.value = false; await flush()
+  assert.notEqual(h.button('queryData').props.disabled, true)
+})
+
+test('auto update tools follow controlled intervals and remember the last period while paused', async t => {
+  const interval = vue.ref(5000), members = vue.ref([])
+  const Tools = load(resolve(root, 'ObjectDataTools.vue'), {
+    '../RuntimeDiagnostics': { defaultDiagnosticSamplingInterval: 1000, SamplingIntervalControl: vue.defineComponent({
+      props: ['value'], setup: (props, { attrs }) => () => vue.h('interval-control', { ...attrs, value: props.value }),
+    }) },
+    '../../object-capability/useObjectPresentationRegistry': { useObjectPresentationRegistry: () => vue.shallowRef(new Map()) },
+    './ObjectDataExplorer.vue': { __esModule: true, default: vue.defineComponent({ props: ['entry'], setup: props => () => vue.h('query-entry', { entry: props.entry }) }) },
+  }).default
+  const h = render(t, () => () => vue.h(Tools, { interval: interval.value, members: members.value, runtime: () => undefined,
+    'onUpdate:interval': value => { interval.value = value } }))
+  const period = () => h.all().find(node => node.type === 'interval-control')
+  const toggle = () => h.all().find(node => node.props['aria-label'] === 'autoUpdate')
+  assert.equal(period().props.value, 5000)
+  interval.value = 15000; await flush(); assert.equal(period().props.value, 15000)
+  toggle().props.onChange(false); await flush(); assert.equal(interval.value, 0); assert.equal(period(), undefined)
+  toggle().props.onChange(true); await flush(); assert.equal(interval.value, 15000)
+  const analysis = (providerId, id) => ({ ref: { type: 'sample', providerId, id, kind: 'query' }, name: id, metadata: {
+    inputs: ['from', 'to', 'interval'].map(id => ({ id, valueType: { type: 'long' } })),
+    expands: { dataAnalysis: { kind: 'aggregate', from: 'from', to: 'to', interval: 'interval', pageSize: 20 } },
+  } })
+  members.value = [analysis('a/b', 'c'), analysis('a', 'b/c')]; await flush()
+  const { objectCapabilityId } = load(resolve(root, '../../object-capability/metadata.ts'))
+  h.all().find(node => node.type === 'AMenu').props.onClick({ key: objectCapabilityId(members.value[1].ref) }); await flush()
+  assert.deepEqual(h.all().find(node => node.type === 'query-entry').props.entry.member.ref, members.value[1].ref,
+    'opaque source IDs use the canonical member identity rather than a path separator')
+})
+
+test('explicit member presentations override source-wide fallbacks in either module order', () => {
+  const ref = { providerId: 'ledger', kind: 'query', id: 'summary' }
+  const fallback = { typeId: '*', fields: [], members: [{ ref, component: 'Fallback' }] }
+  const exact = { typeId: 'reservoir', fields: [], members: [{ ref, component: 'Exact' }] }
+  for (const entries of [[exact, fallback], [fallback, exact]]) {
+    const { useObjectPresentationRegistry } = load(resolve(root, '../../object-capability/useObjectPresentationRegistry.ts'), {
+      '../utils/module-registry': { moduleRegistry: { onChange: () => () => {}, getAllModules: () => new Map(entries.map((entry, i) => [i, { objectPresentations: { entry } }])) } }
+    })
+    const scope = vue.effectScope()
+    scope.run(() => {
+      const { objectMemberPresentation } = load(resolve(root, '../../object-capability/presentations.ts'))
+      const type = vue.ref('reservoir'), registry = useObjectPresentationRegistry()
+      const presentation = vue.computed(() => objectMemberPresentation({ ...ref, type: type.value }, registry.value))
+      assert.equal(presentation.value.component, 'Exact')
+      type.value = 'warehouse'
+      assert.equal(presentation.value.component, 'Fallback')
+    })
+    scope.stop()
+  }
+})
+
+test('saved and editing dashboards use the same container-driven narrow projection without rewriting coordinates', () => {
+  const width = vue.ref(760)
+  const { useObjectDashboardLayout } = load(resolve(root, '../../object-capability/useObjectDashboardLayout.ts'), {
+    '@vueuse/core': { useElementSize: () => ({ width }) }
+  })
+  const stored = { canvas: {}, components: [
+    { id: 'main', componentProps: { gridItem: { x: 0, y: 0, w: 8, h: 8 } } },
+    { id: 'side', componentProps: { gridItem: { x: 8, y: 0, w: 4, h: 3 } } },
+  ] }
+  const value = vue.ref(structuredClone(stored)), editing = vue.ref(false), saved = vue.ref('personal')
+  const layout = useObjectDashboardLayout(value, editing, saved)
+  assert.equal(layout.displayed.value, value.value)
+  width.value = 560
+  assert.equal(layout.narrow.value, true)
+  const narrow = JSON.parse(JSON.stringify(layout.displayed.value))
+  assert.ok(narrow.components.every(widget => widget.componentProps.gridItem.x === 0 && widget.componentProps.gridItem.w === 12))
+  editing.value = true
+  assert.deepEqual(layout.displayed.value, narrow)
+  assert.deepEqual(value.value, stored)
+  width.value = 760
+  assert.equal(layout.displayed.value, value.value)
+})
+
 const flush = async () => { await vue.nextTick(); await Promise.resolve(); await vue.nextTick() }
 function render(t, setup) {
-  const node = (type, text = '') => ({ type, text, props: {}, children: [], parent: null })
+  const node = (type, text = '') => ({ type, text, props: {}, children: [], parent: null, clientHeight: 100, scrollTop: 0 })
   const renderer = vue.createRenderer({
     createElement: type => node(type), createText: text => node('#text', text), createComment: text => node('#comment', text),
     insert(child, parent, anchor) { if (child.parent) child.parent.children.splice(child.parent.children.indexOf(child), 1); child.parent = parent; const at = anchor ? parent.children.indexOf(anchor) : -1; at < 0 ? parent.children.push(child) : parent.children.splice(at, 0, child) },
@@ -70,7 +610,14 @@ function render(t, setup) {
   const target = node('root')
   const app = renderer.createApp({ setup })
   const shell = name => vue.defineComponent({ inheritAttrs: true, setup: (_props, { slots }) => () => vue.h(name, Object.values(slots).flatMap(slot => slot?.())) })
-  for (const name of ['AButton', 'ATooltip', 'APopover', 'AIcon', 'AAlert', 'AEmpty', 'ATag', 'ASpace', 'ASpin', 'AForm', 'ASelect', 'ASelectOption', 'ASkeleton', 'AInput', 'ADropdown', 'AMenu', 'AMenuItem']) app.component(name, shell(name))
+  for (const name of ['ACard', 'AButton', 'ATooltip', 'APopover', 'AIcon', 'AAlert', 'AEmpty', 'ATag', 'ASpace', 'ASpin', 'AForm', 'ASelect', 'ASelectOption', 'ASkeleton', 'AInput', 'ADropdown', 'AMenu', 'AMenuItem', 'ASegmented']) app.component(name, shell(name))
+  app.component('ATable', vue.defineComponent({ props: ['dataSource', 'columns'], setup: (props, { attrs }) => () => vue.h('data-table', { ...attrs, ...props }) }))
+  app.component('AList', vue.defineComponent({
+    props: ['dataSource', 'rowKey', 'size'],
+    setup: (props, { slots, attrs }) => () => vue.h('ul', attrs, props.dataSource.flatMap((item, index) => slots.renderItem?.({ item, index })))
+  }))
+  app.component('AListItem', vue.defineComponent({ setup: (_props, { slots }) => () => vue.h('li', [slots.default?.(), slots.extra?.()]) }))
+  app.component('AListItemMeta', shell('list-meta'))
   app.component('AModal', vue.defineComponent({ props: ['open'], emits: ['cancel'], setup: (props, { slots, emit }) => () => props.open ? vue.h('dialog', { onClose: () => emit('cancel') }, slots.default?.()) : null }))
   app.mount(target); t.after(() => app.unmount())
   const all = (root = target) => [root, ...root.children.flatMap(all)]
@@ -136,15 +683,32 @@ function overview(t, store) {
   const Overview = load(resolve(root, 'ObjectOverview.vue'), {
     '../DashBoardCanvas': { DashBoardCanvas: Canvas },
     './ObjectCapabilityPicker.vue': { __esModule: true, default: () => null },
-    '../../object-capability/useObjectCapabilities': { useObjectCapabilities: () => capability },
+    '../../object-capability/useObjectCapabilities': { useObjectCapabilities: (_object, options) => { capability.selected = options.selected; return capability } },
     '../../object-capability/useObjectRelatedData': { useObjectRelatedData: () => ({ members: vue.ref([]), states: vue.ref({}) }) },
-    '../../object-capability/useObjectMemberPresentations': { useObjectMemberPresentations: () => vue.ref([]) },
+    '../../object-capability/useObjectPresentationRegistry': { useObjectPresentationRegistry: () => vue.ref(new Map()) },
   }).default
   const h = render(t, () => () => vue.h(Overview, { object: { type: 'sample', id: 'A' }, store }, {
     actions: () => vue.h('button', 'Source action'), default: () => vue.h('records', 'Original records'),
   }))
   return { ...h, capability, alerts: () => h.all().filter(item => item.type === 'AAlert').map(item => item.props.message) }
 }
+
+test('standard reading retains all property reads without an expand-all action', async t => {
+  const h = overview(t)
+  h.capability.members.value = Array.from({ length: 12 }, (_, index) => ({
+    ref: { type: 'sample', providerId: 'source', kind: 'property', id: `field-${index}` },
+    name: `Field ${index}`, sourceName: 'Source', identitySource: true, metadata: { valueType: { type: 'string' } },
+  }))
+  h.capability.members.value = [...h.capability.members.value, { ref: { type: 'sample', providerId: 'source', kind: 'query', id: 'requiresParameters' },
+    name: 'Parameterized query', sourceName: 'Source', metadata: { inputs: [{ id: 'scope', valueType: { type: 'string' } }] } }]
+  h.capability.loading.value = false; await flush()
+  assert.equal(h.capability.selected.value.length, 12)
+  assert.equal(h.all().filter(node => node.type === 'article').length, 12)
+  assert.equal(h.button('showAll'), undefined)
+  assert.equal(h.capability.selected.value.length, 12, 'disclosure never rewrites the model or its reads')
+  assert.doesNotMatch(h.text(), /Parameterized query/)
+  assert.equal(h.all().some(node => node.type === 'dashboard'), false)
+})
 
 test('actual overview keeps records visible without a blank dashboard during model loading, failure and empty success', async t => {
   const h = overview(t)

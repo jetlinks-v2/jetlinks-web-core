@@ -1,18 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import MetadataValueItem from '../MetadataValueItem/index.vue'
 import type { ObjectPropertyMetadata } from '../../object-capability/types'
 const props = defineProps<{ field: ObjectPropertyMetadata; modelValue?: unknown }>()
 const emit = defineEmits<{ 'update:modelValue': [value: unknown] }>()
-const booleanValues = computed(() => ({ true: props.field.valueType.trueValue ?? true, false: props.field.valueType.falseValue ?? false }))
-const booleanValue = computed(() => Object.entries(booleanValues.value).find(([, value]) => value === props.modelValue)?.[0])
 type InputValue = string | number | boolean | Record<string, unknown> | unknown[] | undefined
 const fieldValue = (id: string) => (props.modelValue as Record<string, unknown> | undefined)?.[id]
 function update(id: string, value: unknown) { emit('update:modelValue', { ...(props.modelValue as Record<string, unknown> || {}), [id]: value }) }
 </script>
 <template>
-  <a-select v-if="field.valueType.type === 'boolean'" :value="booleanValue" style="width:100%" :options="[{value:'true',label:field.valueType.trueText || '是'},{value:'false',label:field.valueType.falseText || '否'}]" @change="(value: string) => emit('update:modelValue', booleanValues[value as 'true' | 'false'])" />
-  <div v-else-if="field.valueType.type === 'object' && field.valueType.properties?.length" class="object-input-fields">
+  <div v-if="field.valueType.type === 'object' && field.valueType.properties?.length" class="object-input-fields">
     <label v-for="child in field.valueType.properties" :key="child.id"><span>{{ child.name || child.id }}</span><ObjectInputValue :field="child" :model-value="fieldValue(child.id)" @update:model-value="update(child.id, $event)" /></label>
   </div>
   <MetadataValueItem v-else :item="field" :model-value="modelValue as InputValue" @update:model-value="emit('update:modelValue', $event)" />

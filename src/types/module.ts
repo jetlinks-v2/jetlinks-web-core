@@ -10,7 +10,7 @@ import type { ObjectRelationMaintainer } from './object-relation'
 
 export type ModuleResourceRecord<T = unknown> = Record<string, T>
 
-export type KnownModuleResourceType = 'apis' | 'components' | 'hooks' | 'stores' | 'utils' | 'routes' | 'dataCapabilityProviders' | 'agentConversationProviders' | 'assetDimensionFilters' | 'assetRelationBindings' | 'objectRelationMaintainers'
+export type KnownModuleResourceType = 'apis' | 'components' | 'hooks' | 'stores' | 'utils' | 'routes' | 'dataCapabilityProviders' | 'agentConversationProviders' | 'assetDimensionFilters' | 'assetRelationBindings' | 'objectPresentations' | 'objectRelationMaintainers'
 export type ModuleResourceType = KnownModuleResourceType | (string & {})
 
 export interface ModuleResource {

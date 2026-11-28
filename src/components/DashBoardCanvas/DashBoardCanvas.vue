@@ -2,7 +2,6 @@
   <div class="dashboard-card-layout" :class="{ 'dashboard-card-layout--page': scrollMode === 'page' }">
     <div class="dashboard-card-content" :style="surfaceStyle">
       <GridCanvas :widgets="state.value.value.components" :settings="state.gridSettings.value"
-        :embedded="scrollMode === 'page'"
         :editable="editable" :layout-editable="layoutEditable" :dragging="dragging"
         @change="state.updateLayout" @drop="onDrop"
         @interaction="isDrawerDragging = $event" @drag-end="endDrag">
@@ -29,7 +28,7 @@
       </div>
     </div>
 
-    <div v-if="editable && !drawerVisible" class="dashboard-setting-dock" :class="{ 'is-open': settingMenuVisible }">
+    <div v-if="editable && showSettings && !drawerVisible" class="dashboard-setting-dock" :class="{ 'is-open': settingMenuVisible }">
       <div class="dashboard-setting-hotspot" aria-hidden="true" />
       <a-dropdown v-model:open="settingMenuVisible" placement="topLeft" :trigger="['click']">
         <button type="button" class="dashboard-setting-trigger" :aria-label="t('dashboardCanvas.canvasSettings')">
@@ -81,6 +80,8 @@ const props = withDefaults(defineProps<{
   modelValue: DashboardValue
   catalog: DashboardCatalog
   editable?: boolean
+  /** Hosts with their own editing tools can omit the floating canvas settings menu. */
+  showSettings?: boolean
   layoutEditable?: boolean
   /** Stable localStorage key for this dashboard's personal layout. */
   storageKey?: string
@@ -91,7 +92,7 @@ const props = withDefaults(defineProps<{
   /** Embedded canvases let the surrounding page own vertical scrolling. */
   scrollMode?: 'canvas' | 'page'
   resolveImage?: (fileId: string) => string
-}>(), { editable: false, layoutEditable: false, previewMode: false, scrollMode: 'canvas' })
+}>(), { editable: false, showSettings: true, layoutEditable: false, previewMode: false, scrollMode: 'canvas' })
 const emit = defineEmits<{ 'update:modelValue': [value: DashboardValue] }>()
 const { t } = useI18n()
 const state = useDashboardState({ value: () => props.modelValue, catalog: () => props.catalog,

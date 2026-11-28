@@ -17,6 +17,7 @@ const { register, unregister, extent } = useLinkedHistoryCharts(toRef(props, 'ch
 <style scoped>
 .history-chart-shell { container:history-charts / inline-size; min-width:0; }
 .history-chart-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }.history-chart-grid--compact { gap:12px; }
+.history-chart-grid > :only-child { grid-column:1 / -1; }
 @media(max-width:640px) { .history-chart-grid:not(.history-chart-grid--compact) { grid-template-columns:minmax(0,1fr); gap:8px; } }
 /* 两列各至少 266px，按组件实际宽度响应拖动缩放，而非只看视口。 */
 @container history-charts (width < 544px) { .history-chart-grid--compact { grid-template-columns:minmax(0,1fr); } }

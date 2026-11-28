@@ -5,6 +5,7 @@ import {
   addObjectDashboardSelection,
   currentObjectSelection,
   objectReadingDashboard,
+  objectDashboardHeight,
   objectDefaultDashboard,
   objectWidgetSelections,
   dashboardSelections,
@@ -54,7 +55,12 @@ const providers: ObjectProviderModel[] = [
       properties: [
         field('calculated', { semanticRole: 'result' }),
         field('legacy', { semanticRole: 'value' }),
-        field('typed', { semanticTypes: ['observation'] })
+        field('typed', { semanticTypes: ['observation'] }),
+        {
+          id: 'summary',
+          valueType: { type: 'object', properties: [field('count')] },
+          expands: { semanticRole: 'result' }
+        }
       ],
       functions: [
         { id: 'history', expands: { functionKind: 'query' } },
@@ -80,7 +86,7 @@ assert.equal(
   'field meaning takes precedence over source classification'
 )
 assert.equal(objectMemberContentGroup(find('target', 'arbitrary-name')), 'references')
-for (const id of ['calculated', 'legacy', 'typed'])
+for (const id of ['calculated', 'legacy', 'typed', 'summary'])
   assert.equal(objectMemberContentGroup(find(id, 'other')), 'observations')
 const labels = {
   data: 'Facts',
@@ -96,8 +102,11 @@ assert.deepEqual(providers, snapshot, 'projection does not mutate original metad
 const groups = dashboard.components
 assert.deepEqual(
   groups.map((g) => g.name),
-  ['Facts', 'Status', 'Links', 'Readings', 'Actions']
+  ['Facts', 'Readings', 'Actions']
 )
+assert.deepEqual(groups[0].componentProps.contentGroups, ['data', 'status', 'references'])
+assert.equal(groups[0].componentProps.collapsible, true)
+assert.ok(groups.every(group => group.componentProps.gridItem!.w === 12))
 assert.equal(
   objectWidgetSelections(groups.find((g) => g.name === 'Readings')!, members).length,
   6,
@@ -122,7 +131,7 @@ function assertNoOverlap(items: typeof groups) {
 }
 assertNoOverlap(groups)
 const readingSnapshot = structuredClone(dashboard)
-const measured = objectReadingDashboard(dashboard, { [groups[0].id]: 320 })
+const measured = objectReadingDashboard(dashboard, { [groups[0].id]: objectDashboardHeight(dashboard) + 100 })
 assertNoOverlap(measured.components)
 assert.ok(measured.components[0].componentProps.gridItem!.h! > groups[0].componentProps.gridItem!.h!)
 assert.equal(measured.components[1].componentProps.gridItem!.x, groups[1].componentProps.gridItem!.x)

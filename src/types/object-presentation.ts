@@ -1,5 +1,20 @@
 import type { Component } from 'vue'
-import type { ObjectMemberPresentation } from '../object-capability/types'
+import type { ObjectMemberPresentation, ObjectMemberRef } from '../object-capability/types'
+
+/** Stable source bindings, independent of translated labels and instance values. */
+export interface ObjectSectionRelation {
+  objectType: string
+  id: string
+  targetType: string
+  reverse: boolean
+}
+export interface ObjectSectionPresentation {
+  id: string
+  label: () => string
+  /** Omit id to include the declared members of one source and kind, e.g. a dynamic thing model. */
+  members?: Array<Omit<ObjectMemberRef, 'type' | 'id'> & { id?: string }>
+  relations?: ObjectSectionRelation[]
+}
 
 /** An owning module supplies the complete authorized hierarchy, never inferred from graph relations. */
 export interface ObjectDirectoryNode {
@@ -40,10 +55,13 @@ export interface ObjectPresentationField {
 }
 
 export interface ObjectPresentation {
+  /** '*' contributes source-wide member and section presentations, not an object type. */
   typeId: string
   fields: ObjectPresentationField[]
   /** Optional member-specific visuals; loading and execution remain with the host runtime. */
   members?: ObjectMemberPresentation[]
+  /** The host owns the card, reading and execution; business modules contribute meaning and content. */
+  sections?: ObjectSectionPresentation[]
   /** Query configuration/formatting belongs to its owner; the host retains execution and persistence. */
   queries?: Record<
     string,

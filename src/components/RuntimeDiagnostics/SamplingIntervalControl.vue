@@ -2,8 +2,8 @@
   <a-popover :open="visible" trigger="click" placement="bottomRight" @open-change="setOpen">
     <template #content>
       <div ref="content" class="diagnostic-sampling" tabindex="-1" @keydown.esc.stop="close">
-        <div v-if="showInterval" class="diagnostic-sampling-frequency" role="group" :aria-label="t('runtimeDiagnostics.sampling.interval')">
-          <div class="diagnostic-sampling-caption"><ClockCircleOutlined /><span>{{ t('runtimeDiagnostics.sampling.interval') }}</span></div>
+        <div v-if="showInterval" class="diagnostic-sampling-frequency" role="group" :aria-label="label || t('runtimeDiagnostics.sampling.interval')">
+          <div class="diagnostic-sampling-caption"><ClockCircleOutlined /><span>{{ label || t('runtimeDiagnostics.sampling.interval') }}</span></div>
           <a-segmented size="small" :value="value" :options="options" @change="select" />
         </div>
         <div v-if="$slots.footer" class="diagnostic-sampling-footer"><slot name="footer" :close="close" /></div>
