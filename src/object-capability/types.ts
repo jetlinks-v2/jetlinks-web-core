@@ -41,18 +41,18 @@ export interface ObjectPropertyMetadata {
 export interface ObjectDataAccess {
   history?: string
   aggregate?: string
-  operations: Array<{ id: string; name: string; valueType?: ObjectValueType }>
+  operations: Array<{ id: string; name: string; valueType: ObjectValueType }>
   pageSize: number
+  /** Source-native time grouping, using its declared zone; explicit zone buckets require a separate source contract. */
+  groupByTime?: { column: string; timeZone: string }
 }
-export interface ObjectDataQuery {
-  dataMode: 'history' | 'aggregate'
+export type ObjectDataQuery = {
+  dataMode: 'history'
   from: number
   to: number
-  interval?: number
-  aggregation?: string
   pageIndex: number
   pageSize: number
-}
+} | { dataMode: 'aggregate'; aggregationQuery: import('../types/aggregation').AggregationQueryParam }
 export interface ObjectDataSample { timestamp: number; value: unknown }
 export interface ObjectFunctionMetadata {
   id: string

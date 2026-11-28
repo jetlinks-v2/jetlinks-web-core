@@ -6,6 +6,7 @@ import { objectCapabilitiesApi } from './api'
 import { objectDataAccess } from './dataAccess'
 import { objectCapabilityId, objectMembers, objectValueSchema, parseObjectCapabilityId, sameObjectMember } from './metadata'
 import type { ObjectCapabilityValue, ObjectFunctionMetadata, ObjectMember, ObjectReference } from './types'
+import type { AggregationQueryParam } from '../types/aggregation'
 
 const owner = { moduleId: 'jetlinks-web-core', providerId: 'object-capabilities' }
 const actionPolicy: OperationDefinition['policy'] = {
@@ -56,16 +57,23 @@ function source(member: ObjectMember): DataSourceDefinition {
             const command = mode === 'history' ? access?.history : mode === 'aggregate' ? access?.aggregate : undefined
             if (mode && (!command || !actualMembers.some(value => value.ref.providerId === actual.ref.providerId &&
               value.ref.kind === 'query' && value.ref.id === command))) throw new Error('所选数据能力暂不可用')
+            const aggregation = request.query?.aggregationQuery as AggregationQueryParam | undefined
+            if (mode === 'aggregate' && (!aggregation || aggregation.columns?.length !== 1 || !aggregation.columns[0] ||
+              !access?.operations.some(value => value.id === aggregation.columns[0].aggregation))) throw new Error('所选统计方式暂不可用')
+            const query = mode === 'aggregate' ? { ...aggregation,
+              columns: aggregation!.columns.map(column => ({ ...column, column: actual.ref.id })),
+              groupByTime: aggregation!.groupByTime && { ...aggregation!.groupByTime, column: access!.groupByTime!.column },
+            } : { from: request.query?.from, to: request.query?.to, pageIndex: request.query?.pageIndex,
+              pageSize: request.query?.pageSize, property: actual.ref.id }
             const value = mode
-              ? await api.command(object, actual.ref.providerId, command!, { query: {
-                from: request.query?.from, to: request.query?.to, interval: request.query?.interval,
-                aggregation: request.query?.aggregation, pageIndex: request.query?.pageIndex,
-                pageSize: request.query?.pageSize, property: actual.ref.id,
-              } }, true, request.signal)
+              ? await api.command(object, actual.ref.providerId, command!, { query }, true, request.signal)
               : member.ref.kind === 'property'
               ? (await api.properties(object, member.ref.providerId, [member.ref.id], request.signal))[0]?.value
               : await api.command(object, member.ref.providerId, member.ref.id, request.query || {}, true, request.signal)
-            values.push({ object, value, metadata: actual.metadata })
+            const metadata = mode === 'aggregate' ? { ...actual.metadata,
+              valueType: access!.operations.find(operation => operation.id === aggregation!.columns[0].aggregation)!.valueType,
+            } : actual.metadata
+            values.push({ object, value, metadata })
           }
           return { data: { values, limited: resolved.limited } as T }
         })

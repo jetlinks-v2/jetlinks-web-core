@@ -4,11 +4,17 @@ import type { ObjectDataAccess, ObjectMember, ObjectPropertyMetadata } from './t
 export function objectDataAccess(member?: ObjectMember): ObjectDataAccess | undefined {
   if (member?.ref.kind !== 'property') return
   const raw = (member.metadata as ObjectPropertyMetadata).expands?.dataAccess as Partial<ObjectDataAccess> | undefined
-  if (!raw || !Number.isInteger(raw.pageSize) || raw.pageSize! <= 0 ||
-    !(typeof raw.history === 'string' && raw.history || typeof raw.aggregate === 'string' && raw.aggregate)) return
+  if (!raw || !Number.isInteger(raw.pageSize) || raw.pageSize! <= 0) return
+  const history = typeof raw.history === 'string' && raw.history ? raw.history : undefined
   const operations = Array.isArray(raw.operations) ? raw.operations.filter(value =>
-    typeof value?.id === 'string' && !!value.id && typeof value.name === 'string' && !!value.name) : []
-  return { history: raw.history, aggregate: raw.aggregate, operations, pageSize: raw.pageSize! }
+    typeof value?.id === 'string' && !!value.id && typeof value.name === 'string' && !!value.name &&
+    !!value.valueType && typeof value.valueType === 'object' && typeof value.valueType.type === 'string') : []
+  const group = raw.groupByTime
+  const aggregate = typeof raw.aggregate === 'string' && raw.aggregate && operations.length &&
+    typeof group?.column === 'string' && group.column && typeof group.timeZone === 'string' && group.timeZone
+    ? raw.aggregate : undefined
+  if (!history && !aggregate) return
+  return { history, aggregate, operations, pageSize: raw.pageSize!, groupByTime: aggregate ? group : undefined }
 }
 
 export function objectDataAnalyses(members: ObjectMember[]) {

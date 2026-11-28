@@ -9,6 +9,7 @@ import { objectCapabilitiesApi } from './api'
 import { useValueUnit } from '../hooks/useValueUnit'
 import { objectValueSchema } from './metadata'
 import type { ObjectCapabilityValue, ObjectDataSample, ObjectPropertyMetadata } from './types'
+import { objectAggregationQuery } from './aggregation'
 
 /** One cancellable query lifetime for the selected data item or declared object analysis. */
 export function useObjectDataQuery(entry: Readonly<Ref<ObjectContentEntry | undefined>>, runtime: () => DataCapabilityRuntime | undefined) {
@@ -22,7 +23,7 @@ export function useObjectDataQuery(entry: Readonly<Ref<ObjectContentEntry | unde
   const typesFailed = ref(false)
   const result = shallowRef<ObjectCapabilityValue>()
   const valueType = computed(() => mode.value === 'aggregate'
-    ? access.value?.operations.find(value => value.id === operation.value)?.valueType || (entry.value?.member?.metadata as ObjectPropertyMetadata)?.valueType
+    ? access.value?.operations.find(value => value.id === operation.value)?.valueType
     : (entry.value?.member?.metadata as ObjectPropertyMetadata)?.valueType)
   const unit = useValueUnit(() => valueType.value?.unit)
   const numeric = computed(() => {
@@ -53,13 +54,14 @@ export function useObjectDataQuery(entry: Readonly<Ref<ObjectContentEntry | unde
     busy.value = true; failed.value = false
     if (!append) { pageIndex.value = 0; result.value = undefined; limited.value = false }
     const data = access.value
-    const parameters = data ? { dataMode: mode.value, ...range.value, interval: intervalSeconds.value * 1000,
-      aggregation: operation.value, pageIndex: pageIndex.value, pageSize: data.pageSize } : { ...input.value,
-        ...(analysis.value ? { [analysis.value.from]: range.value.from, [analysis.value.to]: range.value.to,
-          [analysis.value.interval]: intervalSeconds.value * 1000 } : {}),
-      }
     const binding = selected.selection.binding as PersistedDataBinding
     try {
+      const parameters = data ? mode.value === 'aggregate' ? { dataMode: mode.value,
+        aggregationQuery: objectAggregationQuery(data, selected.member!.ref.id, range.value, operation.value, intervalSeconds.value) }
+        : { dataMode: mode.value, ...range.value, pageIndex: pageIndex.value, pageSize: data.pageSize } : { ...input.value,
+          ...(analysis.value ? { [analysis.value.from]: range.value.from, [analysis.value.to]: range.value.to,
+            [analysis.value.interval]: intervalSeconds.value * 1000 } : {}),
+        }
       const response = await session.query<ObjectCapabilityValue>({ ...binding, query: { ...binding.query, ...parameters } }, { signal: controller.signal })
       if (token !== generation) return
       if (data) for (const value of response.data.values) {

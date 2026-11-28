@@ -49,6 +49,7 @@ const modes = computed(() => {
           <HistoryRangeControl :range="range" @change="changeRange" />
           <a-select v-if="mode === 'aggregate'" :value="operation" :aria-label="t('aggregation')" :options="access.operations.map(item => ({ value: item.id, label: item.name }))" @change="changeOperation" />
           <label v-if="mode === 'aggregate'">{{ t('bucketInterval') }} <a-input-number v-model:value="intervalSeconds" :min="1" :precision="0" /> {{ t('seconds') }}</label>
+          <small v-if="mode === 'aggregate' && access.groupByTime">{{ t('aggregationTimeZone', { zone: access.groupByTime.timeZone }) }}</small>
           <a-button :loading="busy" @click="query(false)">{{ t('queryData') }}</a-button>
         </div>
         <template v-if="samples.length">
