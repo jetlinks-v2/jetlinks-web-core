@@ -43,6 +43,8 @@ declare module 'vue-router' {
     security?: RouteSecurityLevel
     /** Preserve the original route when redirecting unauthenticated users to login. */
     preserveLoginRedirect?: boolean
+    /** Public intermediary renders before checking its own session and access target. */
+    deferSessionBootstrap?: boolean
     /** Legacy compatibility: skip menu permission check */
     skipMenuFetch?: boolean
     /** Page title */

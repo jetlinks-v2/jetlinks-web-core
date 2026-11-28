@@ -253,7 +253,14 @@ export const applyApplicationScopeHeaders = (
   const scopeKeys = Object.keys(headers).filter(key => key.toLowerCase() === APPLICATION_SCOPE_HEADER.toLowerCase())
   const explicitHeader = scopeKeys.map(key => headers[key]).find(value => typeof value === 'string' && value.trim())
   scopeKeys.forEach(key => delete headers[key])
-  if (applicationScope === false || projectContext === false || isProjectApplicationScope(applicationScope)) return
+  if (applicationScope === false || isProjectApplicationScope(applicationScope)) return
+  if (projectContext === false) {
+    // 关闭项目上下文时仅保留调用方显式指定的非应用范围。
+    if (typeof explicitHeader === 'string' && /^(?!business_application:)[a-z][a-z0-9_-]*:.+/.test(explicitHeader)) {
+      headers[APPLICATION_SCOPE_HEADER] = explicitHeader
+    }
+    return
+  }
 
   if (applicationScope) {
     headers[APPLICATION_SCOPE_HEADER] = getApplicationScopeHeader(applicationScope)

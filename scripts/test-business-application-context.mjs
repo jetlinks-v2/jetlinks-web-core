@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import {
+  APPLICATION_SCOPE_HEADER,
   PROJECT_APPLICATION_SCOPE,
+  applyApplicationScopeHeaders,
   getApplicationScopeFromLocation,
   isBusinessApplicationEndpointMissing,
   isProjectApplicationScope,
@@ -19,6 +21,13 @@ assert.equal(selectApplicationScope(applications, 'application-b')?.id, 'applica
 assert.equal(selectApplicationScope(applications, 'removed-application')?.id, 'application-a')
 assert.equal(selectApplicationScope([], 'application-a'), undefined)
 assert.equal(isProjectApplicationScope(PROJECT_APPLICATION_SCOPE), true)
+
+const organizationScope = { 'x-asset-scope': 'org:organization-a' }
+applyApplicationScopeHeaders(organizationScope, undefined, 'application-a', false)
+assert.deepEqual(organizationScope, { [APPLICATION_SCOPE_HEADER]: 'org:organization-a' })
+const projectScope = { [APPLICATION_SCOPE_HEADER]: 'business_application:application-a' }
+applyApplicationScopeHeaders(projectScope, undefined, 'application-a', false)
+assert.deepEqual(projectScope, {})
 
 const values = new Map()
 const storage = {

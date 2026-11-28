@@ -6,6 +6,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { test } from 'node:test'
 import { transformSync } from 'esbuild'
 import axios from 'axios'
+import * as Rxjs from 'rxjs'
 import { isFunction, isObject } from 'lodash-es'
 import * as Vue from 'vue'
 import * as Pinia from 'pinia'
@@ -66,7 +67,7 @@ const fixture = (t, { environment = 'saas', scope = 'auto', base = '/', href = `
   let resets = 0
   const environmentConfig = { VITE_APP_ENVIRONMENT: environment, VITE_APP_RUNTIME_SCOPE: scope, BASE_URL: base }
   const dependencies = {
-    vue: Vue, pinia: Pinia, axios, 'lodash-es': { isFunction, isObject },
+    vue: Vue, pinia: Pinia, axios, rxjs: Rxjs, 'lodash-es': { isFunction, isObject },
     'vue-router': { createRouter: () => router, createWebHashHistory() {} },
     '@jetlinks-web/constants': { TOKEN_KEY: tokenKey, BASE_API: '/api', TOKEN_KEY_URL: 'token' },
     '@jetlinks-web-core/locales': { global: { t: key => key } },

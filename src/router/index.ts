@@ -278,6 +278,11 @@ router.beforeEach((to, from, next) => {
   }
 
   const token = getToken()
+  // 仅公开授权中间页可延迟会话初始化。
+  if (isPublicRoute(to) && to.meta.deferSessionBootstrap) {
+    next()
+    return
+  }
   if (token && entry.type === 'application' && isForbiddenRoute(to)) {
     next()
     return
