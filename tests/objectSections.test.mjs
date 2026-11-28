@@ -25,6 +25,14 @@ test('precise member bindings win over a source group, while ambiguous or unrela
   assert.equal(objectMemberSection(member('reading'), [exact, { ...exact, id: 'conflict' }]), undefined)
   assert.equal(objectMemberSection(member('reading', 'query'), [broad]), undefined)
 })
+test('member identity and exact overrides ignore reference property insertion order', () => {
+  const shared = { ref: { providerId: 'source', kind: 'property', id: 'reading' }, component: {} }
+  const exact = { ref: { id: 'reading', kind: 'property', providerId: 'source' }, component: {} }
+  for (const entries of [[shared, exact], [exact, shared]]) {
+    assert.deepEqual(objectMemberPresentations('asset', entries.map(item => contribution('asset', [], [item]))), [])
+  }
+  assert.deepEqual(objectMemberPresentations('asset', [contribution('*', [], [shared]), contribution('asset', [], [exact])]), [exact])
+})
 test('default sections retain source bindings for generic fallback and never implicitly run queries', () => {
   const definition = section('readings', binding), members = [member('reading'), member('extra'), member('analysis', 'query')]
   const labels = { data: 'Facts', actions: 'Actions', observations: 'Readings' }

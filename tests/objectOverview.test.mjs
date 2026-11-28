@@ -376,6 +376,55 @@ test('automatic updates stay batched, retain old values on failure and stop whil
   assert.ok(paused > 0)
 })
 
+test('history selection follows current members and closes when its selection disappears', async t => {
+  let selected
+  const ContentWithExplorer = load(resolve(root, 'ObjectContentGroup.vue'), {
+    './ObjectDataExplorer.vue': { __esModule: true, default: vue.defineComponent({ props: ['entry'], setup: props => () => { selected = props.entry; return null } }) },
+  }).default
+  const ref = { type: 'reservoir', providerId: 'source', kind: 'property', id: 'level' }
+  const initial = { selection: { member: ref, binding: { source: { capabilityId: 'level' } } },
+    member: { ref, name: 'Level', metadata: { valueType: { type: 'double' }, expands: { dataAccess: { history: 'history', pageSize: 20 } } } }, state: { status: 'ready', value: 1 } }
+  const entries = vue.shallowRef([initial])
+  const h = render(t, () => () => vue.h(ContentWithExplorer, { entries: entries.value, runtime: () => undefined }))
+  h.button('historyAndStats').props.onClick(); await flush()
+  assert.equal(selected, initial)
+  const current = { ...initial, member: { ...initial.member, name: 'Updated level', metadata: { ...initial.member.metadata, valueType: { type: 'double', unit: 'm' } } }, state: { status: 'ready', value: 2 } }
+  entries.value = [current]; await flush()
+  assert.equal(selected, current, 'the open panel receives the current model and value, not its opening snapshot')
+  entries.value = []; await flush()
+  assert.equal(selected, undefined, 'removing the semantic selection closes its query panel')
+  entries.value = [current]; await flush()
+  assert.equal(selected, undefined, 'reintroducing a member does not reopen a closed panel')
+})
+
+test('related reads isolate replacement runtimes without needing readiness or selection changes', async t => {
+  const ref = { type: 'reservoir', providerId: 'source', kind: 'property', id: 'level' }
+  const selection = { member: ref, object: { objectType: 'reservoir', objectSource: { source: 'fixed', value: ['R'] } }, binding: { source: { capabilityId: 'level' } } }
+  let resolveOld, oldSignal
+  const session = vue.shallowRef({ query: (_binding, { signal }) => { oldSignal = signal; return new Promise(resolve => { resolveOld = resolve }) } })
+  const { useObjectRelatedData } = load(resolve(root, '../../object-capability/useObjectRelatedData.ts'), {
+    '../data-capability/request': { useDataCapabilityRequest: () => ({}) },
+    './api': { objectCapabilitiesApi: () => ({ models: async () => [{ providerId: 'source', metadata: { properties: [{ id: 'level' }] } }] }) },
+  })
+  let related
+  render(t, () => { related = useObjectRelatedData(vue.ref([selection]), vue.ref(true), () => session.value); return () => null })
+  await flush()
+  assert.equal(oldSignal.aborted, false)
+  let resolveNew, reads = 0
+  session.value = { query: () => { reads++; return new Promise(resolve => { resolveNew = resolve }) } }
+  await flush()
+  assert.equal(oldSignal.aborted, true, 'replacing the runtime cancels its pending read')
+  assert.equal(reads, 1)
+  const value = number => ({ data: { values: [{ object: { type: 'reservoir', id: 'R' }, value: number }], limited: false } })
+  resolveOld(value(1)); await flush()
+  assert.equal(Object.values(related.states.value)[0].status, 'loading', 'a late old runtime cannot supply the new context')
+  resolveNew(value(2)); await flush()
+  assert.equal(Object.values(related.states.value)[0].value.values[0].value, 2)
+  session.value = undefined; await flush()
+  assert.deepEqual(related.states.value, {}, 'removing the runtime clears its old results without attempting an unavailable query')
+  assert.equal(reads, 1)
+})
+
 test('related auto updates deduplicate bindings, keep old results and discard cancelled background responses', async t => {
   let tick, reads = 0, models = 0, fail = false, delay = false, complete, signal, related
   const visibility = vue.ref('visible'), active = vue.ref(true), interval = vue.ref(2)

@@ -22,7 +22,8 @@ export function useObjectRelatedData(selections: Readonly<Ref<ObjectMemberSelect
     controller.abort(); controller = new AbortController(); reading = false
     const signal = controller.signal
     if (!background) { states.value = {}; members.value = [] }
-    if (!ready.value) return
+    const session = runtime()
+    if (!ready.value || !session) return
     reading = true; backgroundRead = background
     const api = objectCapabilitiesApi({ request })
     const types = [...new Set(selected.value.map(item => item.member.type))]
@@ -41,14 +42,14 @@ export function useObjectRelatedData(selections: Readonly<Ref<ObjectMemberSelect
       if (item.member.kind === 'action') continue
       if (!background || !states.value[key]) states.value = { ...states.value, [key]: { status: 'loading' } }
       try {
-        const result = await runtime()!.query<ObjectCapabilityValue>(item.binding as PersistedDataBinding, { signal })
+        const result = await session.query<ObjectCapabilityValue>(item.binding as PersistedDataBinding, { signal })
         if (token === generation) states.value = { ...states.value, [key]: { status: 'ready', value: result.data } }
       } catch { if (token === generation) states.value = { ...states.value, [key]: background && states.value[key]?.status === 'ready'
         ? { ...states.value[key], refreshError: true } : { status: 'failed' } } }
     }
     if (token === generation) reading = false
   }
-  watch(() => JSON.stringify([ready.value, selected.value.map(selectionKey).sort()]),
+  watch([() => ready.value, runtime, () => JSON.stringify(selected.value.map(selectionKey).sort())],
     () => { void read() }, { immediate: true })
   useObjectAutoRefresh(options, computed(() => ready.value && selected.value.length > 0),
     () => { if (!reading) void read(true) },

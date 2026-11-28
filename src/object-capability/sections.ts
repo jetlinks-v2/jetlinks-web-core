@@ -20,7 +20,7 @@ export function objectSectionPresentations(type: string | undefined, entries: Ob
   return uniqueByScope(type, entries, entry => entry.sections || [], section => section.id)
 }
 export function objectMemberPresentations(type: string | undefined, entries: ObjectPresentation[]): ObjectMemberPresentation[] {
-  return uniqueByScope(type, entries, entry => entry.members || [], member => JSON.stringify(member.ref))
+  return uniqueByScope(type, entries, entry => entry.members || [], member => JSON.stringify([member.ref.providerId, member.ref.kind, member.ref.id]))
 }
 export function objectMemberSection(member: ObjectMember, sections: ObjectSectionPresentation[]): ObjectSectionPresentation | undefined {
   const matches = sections.flatMap(section => {

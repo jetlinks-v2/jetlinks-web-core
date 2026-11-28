@@ -19,7 +19,8 @@ export function useObjectCapabilities(object: Readonly<Ref<ObjectReference | und
   const members = shallowRef<ObjectMember[]>([])
   const values = shallowRef<Record<string, ObjectMemberState>>({})
   const loading = shallowRef(false), failed = shallowRef(false)
-  let generation = 0, readRevision = 0, controller = new AbortController(), runtime: DataCapabilityRuntime | undefined
+  const runtime = shallowRef<DataCapabilityRuntime>()
+  let generation = 0, readRevision = 0, controller = new AbortController()
   let reading = false, backgroundRead = false, readController = new AbortController()
   const visible = computed(() => options.selected?.value === undefined
     ? members.value.filter(member => member.ref.kind === 'property').slice(0, 6)
@@ -30,7 +31,7 @@ export function useObjectCapabilities(object: Readonly<Ref<ObjectReference | und
     if (!object.value) return
     readController.abort(); readController = new AbortController(); reading = true; backgroundRead = background
     const current = generation, revision = ++readRevision, api = objectCapabilitiesApi(context()), target = { ...object.value }
-    const signal = readController.signal, session = runtime
+    const signal = readController.signal, session = runtime.value
     const stale = () => current !== generation || revision !== readRevision
     const next = { ...values.value }
     const groups = new Map<string, ObjectMember[]>()
@@ -88,11 +89,11 @@ export function useObjectCapabilities(object: Readonly<Ref<ObjectReference | und
     const current = ++generation
     controller.abort(); controller = new AbortController()
     readRevision++; readController.abort(); reading = false
-    void runtime?.dispose(); runtime = undefined
+    void runtime.value?.dispose(); runtime.value = undefined
     members.value = []; values.value = {}; failed.value = false
     if (!object.value) { loading.value = false; return }
     loading.value = true
-    runtime = dataCapabilityRegistry.createRuntime({ ...context(), runtimeId: `object:${current}:${crypto.randomUUID()}` })
+    runtime.value = dataCapabilityRegistry.createRuntime({ ...context(), runtimeId: `object:${current}:${crypto.randomUUID()}` })
     try {
       const data = await objectCapabilitiesApi(context()).models(object.value.type, object.value.id, controller.signal)
       if (current !== generation) return
@@ -107,6 +108,6 @@ export function useObjectCapabilities(object: Readonly<Ref<ObjectReference | und
   useObjectAutoRefresh(options, computed(() => !loading.value && !failed.value && visible.value.length > 0),
     () => { if (!reading) void read(undefined, true) },
     () => { if (backgroundRead) { readRevision++; readController.abort(); reading = false } })
-  onBeforeUnmount(() => { generation++; controller.abort(); readController.abort(); void runtime?.dispose() })
-  return { members, visible, values, loading, failed, refresh: load, read, getRuntime: () => runtime }
+  onBeforeUnmount(() => { generation++; controller.abort(); readController.abort(); void runtime.value?.dispose() })
+  return { members, visible, values, loading, failed, refresh: load, read, getRuntime: () => runtime.value }
 }

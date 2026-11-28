@@ -29,7 +29,8 @@ const body = ref<HTMLElement>()
 useResizeObserver(body, ([entry]) => { if (entry && (props.collapsible || props.appearance !== 'section')) emit('content-height', entry.contentRect.height + (props.collapsible ? 2 : 34)) })
 const { t } = useI18n({ useScope: 'local', messages: objectOverviewMessages })
 const active = ref<string>()
-const selectedData = ref<ObjectContentEntry>()
+const selectedDataKey = ref<string>()
+const selectedData = computed(() => selectedDataKey.value ? props.entries.find(entry => selectionKey(entry.selection) === selectedDataKey.value) : undefined)
 const search = ref('')
 const expanded = ref(false)
 const references = computed(() => props.entries.filter(entry => objectMemberContentGroup(entry.member) === 'references'))
@@ -71,6 +72,7 @@ useIntersectionObserver(tail, ([entry]) => {
 onErrorCaptured(() => { renderFailed.value = true; return false })
 watch(() => props.entries.map(entry => selectionKey(entry.selection)).sort().join('|'), () => {
   renderFailed.value = false
+  if (!selectedData.value) selectedDataKey.value = undefined
   visibleCount.value = Math.max(READING_BATCH_SIZE, props.position?.visible || READING_BATCH_SIZE)
   if (!restoring) void nextTick(() => { if (viewport.value) viewport.value.scrollTop = props.position?.top || 0 })
 })
@@ -86,7 +88,7 @@ function rememberPosition() {
   }
 }
 const activeEntry = computed(() => active.value ? props.entries.find(entry => selectionKey(entry.selection) === active.value) : undefined)
-watch(() => props.preview, preview => { if (preview) { active.value = undefined; selectedData.value = undefined } })
+watch(() => props.preview, preview => { if (preview) { active.value = undefined; selectedDataKey.value = undefined } })
 const multipleSources = computed(() => new Set(props.entries.map(entry => entry.member?.ref.providerId).filter(Boolean)).size > 1)
 const ambiguousNames = computed(() => {
   const names = new Map<string, number>()
@@ -129,7 +131,7 @@ const entryLabel = (entry: ObjectContentEntry) => entry.presentation?.label?.() 
             <template #title><div class="object-content-group__observation-name"><span>{{ entryLabel(entry) }}</span><a-tooltip v-if="entry.member" :title="entry.member.description || t('source', { name: entry.member.sourceName })"><InfoCircleOutlined /></a-tooltip></div></template>
             <template v-if="showSource(entry)" #description><small class="object-content-group__source">{{ entry.member?.sourceName }}</small></template>
           </a-list-item-meta>
-          <template #extra><div class="object-content-group__reading-tools"><ObjectContentValue class="object-content-group__reading-value" :entry="displayed[index]" :preview="preview" compact @action="active = selectionKey(entry.selection)" @retry="$emit('retry')" @open="$emit('open', $event)" /><a-tooltip :title="t('historyAndStats')"><a-button v-if="objectDataAccess(entry.member)" type="text" size="small" :disabled="preview" :aria-label="t('inspectReading', { name: entry.member?.name })" @click="selectedData = entry"><HistoryOutlined /></a-button></a-tooltip></div></template>
+          <template #extra><div class="object-content-group__reading-tools"><ObjectContentValue class="object-content-group__reading-value" :entry="displayed[index]" :preview="preview" compact @action="active = selectionKey(entry.selection)" @retry="$emit('retry')" @open="$emit('open', $event)" /><a-tooltip :title="t('historyAndStats')"><a-button v-if="objectDataAccess(entry.member)" type="text" size="small" :disabled="preview" :aria-label="t('inspectReading', { name: entry.member?.name })" @click="selectedDataKey = selectionKey(entry.selection)"><HistoryOutlined /></a-button></a-tooltip></div></template>
         </a-list-item>
       </template>
     </a-list>
@@ -140,7 +142,7 @@ const entryLabel = (entry: ObjectContentEntry) => entry.presentation?.label?.() 
           <a-tooltip v-if="entry.member" :title="entry.member.description || t('source', { name: entry.member.sourceName })"><InfoCircleOutlined /></a-tooltip>
         </div>
         <ObjectContentValue :entry="entry" :preview="preview" :compact="appearance === 'section' || objectMemberContentGroup(entry.member) !== 'observations'" @action="active = selectionKey(entry.selection)" @retry="$emit('retry')" @open="$emit('open', $event)" />
-        <a-button v-if="objectDataAccess(entry.member)" type="link" size="small" :disabled="preview" :aria-label="t('inspectReading', { name: entry.member?.name })" @click="selectedData = entry">{{ t('historyAndStats') }}</a-button>
+        <a-button v-if="objectDataAccess(entry.member)" type="link" size="small" :disabled="preview" :aria-label="t('inspectReading', { name: entry.member?.name })" @click="selectedDataKey = selectionKey(entry.selection)">{{ t('historyAndStats') }}</a-button>
         <small v-if="appearance === 'section' && showSource(entry)" class="object-content-group__source">{{ entry.member?.sourceName }}</small>
       </article>
     </div>
@@ -152,7 +154,7 @@ const entryLabel = (entry: ObjectContentEntry) => entry.presentation?.label?.() 
     <a-modal :open="Boolean(activeEntry) && !preview && !renderFailed" :title="activeEntry?.member?.name" :footer="null" destroy-on-close @cancel="active = undefined">
       <component v-if="activeEntry?.member" :is="activeEntry.presentation?.editor || ObjectOperationPanel" :member="activeEntry.member" :binding="activeEntry.selection.binding as PersistedOperationBinding" :runtime="runtime" @operation="emit('operation', $event)" />
     </a-modal>
-    <ObjectDataExplorer :entry="selectedData" :runtime="runtime" @close="selectedData = undefined" />
+    <ObjectDataExplorer :entry="selectedData" :runtime="runtime" @close="selectedDataKey = undefined" />
     </div>
   </section>
 </template>

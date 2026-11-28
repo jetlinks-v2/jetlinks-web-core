@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { computed, createRenderer, h, provide, shallowRef } from 'vue'
+import { computed, createRenderer, h, provide, shallowRef, watch } from 'vue'
 import { dataCapabilityRequestKey } from '../../src/data-capability/request'
 import { useObjectCapabilities } from '../../src/object-capability/useObjectCapabilities'
 import { useObjectRelatedData } from '../../src/object-capability/useObjectRelatedData'
@@ -65,8 +65,10 @@ const delayedRequest = {
   post() { return new Promise(resolve => reads.push(resolve)) },
 } as unknown as DataCapabilityRequest
 let capability!: ReturnType<typeof useObjectCapabilities>
+const observedRuntimes: Array<DataCapabilityRuntime | undefined> = []
 const delayedApp = renderer.createApp({ setup() {
   capability = useObjectCapabilities(object, { request: delayedRequest, selected: savedSelection })
+  watch(capability.getRuntime, runtime => observedRuntimes.push(runtime), { immediate: true })
   return () => null
 } })
 delayedApp.mount({}); await flush()
@@ -80,6 +82,10 @@ reads[0]({ status: 200, result: [{ property: 'name', value: 'Old' }] })
 await flush()
 assert.equal(capability.values.value[objectCapabilityId(member.ref)].value, 'New')
 assert.equal(capability.values.value[objectCapabilityId(statusMember.ref)].value, 'Ready')
+const firstRuntime = capability.getRuntime()
+await capability.refresh(); await flush()
+assert.notEqual(capability.getRuntime(), firstRuntime)
+assert.equal(observedRuntimes.at(-1), capability.getRuntime(), 'consumers can observe replacement through the public runtime getter')
 delayedApp.unmount()
 
 const spec = shallowRef<VariableObjectSpec | undefined>({ objectType: 'sample', objectId: 'B' })
