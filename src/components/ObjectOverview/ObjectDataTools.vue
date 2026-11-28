@@ -8,6 +8,7 @@ import { objectDataAnalyses } from '../../object-capability/dataAccess'
 import { useObjectPresentationRegistry } from '../../object-capability/useObjectPresentationRegistry'
 import { objectMemberPresentation } from '../../object-capability/presentations'
 import { currentObjectSelection } from '../../object-capability/dashboard'
+import { objectCapabilityId } from '../../object-capability/metadata'
 import type { ObjectMember } from '../../object-capability/types'
 import type { DataCapabilityRuntime } from '../../data-capability/types'
 import { objectOverviewMessages } from './messages'
@@ -20,6 +21,7 @@ const presentations = useObjectPresentationRegistry()
 const entry = computed(() => selected.value ? { member: selected.value, selection: currentObjectSelection(selected.value), state: { status: 'ready' as const },
   presentation: objectMemberPresentation(selected.value.ref, presentations.value) } : undefined)
 function changeSampling(value: number) { sampling.value = value; if (props.interval) emit('update:interval', value) }
+watch(() => props.interval, value => { if (value > 0) sampling.value = value }, { immediate: true })
 watch(() => props.members, () => { selected.value = undefined })
 </script>
 <template>
@@ -29,7 +31,11 @@ watch(() => props.members, () => { selected.value = undefined })
     <SamplingIntervalControl v-if="interval > 0" :value="sampling" :disabled="disabled" :label="t('updateInterval')" @change="changeSampling" />
     <a-dropdown v-if="analyses.length" :trigger="['click']" :disabled="disabled">
       <a-button type="text" size="small" :aria-label="t('objectAnalysis')" :title="compact ? t('objectAnalysis') : undefined"><BarChartOutlined v-if="compact" /><template v-else>{{ t('objectAnalysis') }}</template></a-button>
-      <template #overlay><a-menu @click="selected = analyses.find(item => item.ref.providerId + '/' + item.ref.id === $event.key)"><a-menu-item v-for="member in analyses" :key="member.ref.providerId + '/' + member.ref.id">{{ member.name }}</a-menu-item></a-menu></template>
+      <template #overlay>
+        <a-menu @click="selected = analyses.find(item => objectCapabilityId(item.ref) === $event.key)">
+          <a-menu-item v-for="member in analyses" :key="objectCapabilityId(member.ref)">{{ member.name }}</a-menu-item>
+        </a-menu>
+      </template>
     </a-dropdown>
   </span>
   <ObjectDataExplorer :entry="disabled ? undefined : entry" :runtime="runtime" @close="selected = undefined" />

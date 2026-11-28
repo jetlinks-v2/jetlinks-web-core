@@ -417,10 +417,11 @@ test('related auto updates deduplicate bindings, keep old results and discard ca
 
 test('history defaults to a chart, switches to the same raw rows and uses a table for nonnumeric values', async t => {
   const charts = vue.ref([{ key: 'series' }]), samples = vue.ref([{ timestamp: 100, value: 0, object: { type: 'sample', id: 'A' } }])
-  let reads = 0
+  let reads = 0, retries = 0
   const refs = { access: vue.ref({ history: 'past' }), analysis: vue.ref(), objectTypes: vue.ref([]), valueType: vue.ref(), range: vue.ref(),
     mode: vue.ref('history'), operation: vue.ref(), intervalSeconds: vue.ref(1), input: vue.ref({}), busy: vue.ref(false), failed: vue.ref(false),
-    limited: vue.ref(false), result: vue.ref({ values: [{ object: { type: 'sample', id: 'A' } }] }), charts, samples, query: () => reads++ }
+    hasMore: vue.ref(false), result: vue.ref({ values: [{ object: { type: 'sample', id: 'A' } }] }), charts, samples,
+    query: () => reads++, retry: () => retries++ }
   const Explorer = load(resolve(root, 'ObjectDataExplorer.vue'), {
     '../JlDrawerShell/index.vue': { __esModule: true, default: vue.defineComponent({ setup: (_props, { slots }) => () => slots.default?.() }) },
     '../RuntimeDiagnostics': { HistoryMetricCharts: () => vue.h('history-chart'), HistoryRangeControl: () => null },
@@ -441,6 +442,65 @@ test('history defaults to a chart, switches to the same raw rows and uses a tabl
   charts.value = []; samples.value[0].value = false; await flush()
   assert.equal(h.all().some(node => node.type === 'history-chart'), false)
   assert.equal(h.all().find(node => node.type === 'data-table').props.dataSource[0].value, false)
+  refs.hasMore.value = true; await flush()
+  assert.ok(h.button('showMore'))
+  refs.failed.value = true; await flush()
+  assert.equal(h.button('showMore'), undefined, 'a failed continuation has one retry action')
+  h.button('retry').props.onClick(); assert.equal(retries, 1)
+})
+
+test('native query options show their own loading and retry without querying data', async t => {
+  let catalogRetries = 0, queries = 0
+  const refs = { access: vue.ref(), analysis: vue.ref({ objectTypes: ['category'] }),
+    fields: vue.ref([{ id: 'category', name: 'Category', valueType: { type: 'string' } }]), objectTypes: vue.ref([]),
+    typesBusy: vue.ref(true), typesFailed: vue.ref(false), valueType: vue.ref(), range: vue.ref(),
+    mode: vue.ref('aggregate'), operation: vue.ref(), intervalSeconds: vue.ref(1), input: vue.ref({}),
+    busy: vue.ref(false), failed: vue.ref(false), hasMore: vue.ref(false), result: vue.ref(), charts: vue.ref([]), samples: vue.ref([]),
+    query: () => queries++, retryTypes: () => catalogRetries++, changeRange: () => {} }
+  const Explorer = load(resolve(root, 'ObjectDataExplorer.vue'), {
+    '../JlDrawerShell/index.vue': { __esModule: true, default: vue.defineComponent({ setup: (_props, { slots }) => () => slots.default?.() }) },
+    '../RuntimeDiagnostics': { HistoryMetricCharts: () => null, HistoryRangeControl: () => vue.h('range-control') },
+    '../../object-capability/useObjectDataQuery': { useObjectDataQuery: () => refs },
+  }).default
+  const h = render(t, () => () => vue.h(Explorer, { entry: { member: { name: 'Scope' } }, runtime: () => undefined }))
+  assert.equal(h.all().filter(node => node.type === 'range-control').length, 1)
+  assert.equal(h.all().find(node => node.type === 'ASelect').props.loading, true)
+  assert.equal(h.button('queryData').props.loading, false, 'option loading does not become a data request')
+  refs.typesBusy.value = false; refs.typesFailed.value = true; await flush()
+  assert.equal(h.all().find(node => node.type === 'AAlert').props.message, 'queryOptionsFailed')
+  h.button('retry').props.onClick(); assert.equal(catalogRetries, 1); assert.equal(queries, 0)
+  h.all().find(node => node.type === 'AForm').props.onFinish(); assert.equal(queries, 1,
+    'option lookup does not invent required-input rules; the source still validates native query parameters')
+  refs.typesFailed.value = false; await flush()
+  assert.notEqual(h.button('queryData').props.disabled, true)
+})
+
+test('auto update tools follow controlled intervals and remember the last period while paused', async t => {
+  const interval = vue.ref(5000), members = vue.ref([])
+  const Tools = load(resolve(root, 'ObjectDataTools.vue'), {
+    '../RuntimeDiagnostics': { defaultDiagnosticSamplingInterval: 1000, SamplingIntervalControl: vue.defineComponent({
+      props: ['value'], setup: (props, { attrs }) => () => vue.h('interval-control', { ...attrs, value: props.value }),
+    }) },
+    '../../object-capability/useObjectPresentationRegistry': { useObjectPresentationRegistry: () => vue.shallowRef(new Map()) },
+    './ObjectDataExplorer.vue': { __esModule: true, default: vue.defineComponent({ props: ['entry'], setup: props => () => vue.h('query-entry', { entry: props.entry }) }) },
+  }).default
+  const h = render(t, () => () => vue.h(Tools, { interval: interval.value, members: members.value, runtime: () => undefined,
+    'onUpdate:interval': value => { interval.value = value } }))
+  const period = () => h.all().find(node => node.type === 'interval-control')
+  const toggle = () => h.all().find(node => node.props['aria-label'] === 'autoUpdate')
+  assert.equal(period().props.value, 5000)
+  interval.value = 15000; await flush(); assert.equal(period().props.value, 15000)
+  toggle().props.onChange(false); await flush(); assert.equal(interval.value, 0); assert.equal(period(), undefined)
+  toggle().props.onChange(true); await flush(); assert.equal(interval.value, 15000)
+  const analysis = (providerId, id) => ({ ref: { type: 'sample', providerId, id, kind: 'query' }, name: id, metadata: {
+    inputs: ['from', 'to', 'interval'].map(id => ({ id, valueType: { type: 'long' } })),
+    expands: { dataAnalysis: { kind: 'aggregate', from: 'from', to: 'to', interval: 'interval', pageSize: 20 } },
+  } })
+  members.value = [analysis('a/b', 'c'), analysis('a', 'b/c')]; await flush()
+  const { objectCapabilityId } = load(resolve(root, '../../object-capability/metadata.ts'))
+  h.all().find(node => node.type === 'AMenu').props.onClick({ key: objectCapabilityId(members.value[1].ref) }); await flush()
+  assert.deepEqual(h.all().find(node => node.type === 'query-entry').props.entry.member.ref, members.value[1].ref,
+    'opaque source IDs use the canonical member identity rather than a path separator')
 })
 
 test('explicit member presentations override source-wide fallbacks in either module order', () => {
