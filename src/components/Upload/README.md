@@ -4,6 +4,10 @@
 
 `FileUpload` 从 `@jetlinks-web-core/components` 根入口具名导入，实际实现为 `Upload/File/index.vue`，不全局注册；`ProUpload` 与 `ImageUpload` 沿用原全局注册，属于图片上传能力。
 
+#### 请求进度与取消
+
+`createUploadCustomRequest({ url?, name?, idleTimeout? })` 沿用统一请求上下文和 multipart 字段，转发真实 `onUploadProgress`（`loaded / total / percent`），返回 `{ abort() }`。未设置 `idleTimeout` 时保留普通请求的总超时；长上传可按毫秒设置空闲期限，只有发送字节增加才续期，相同计数不能延长等待。空闲失败使用本地化 `UPLOAD_IDLE`，主动取消不再触发迟到的成功或失败回调。发送完成只表示文件传输完成，业务检查和正式生效由业务流程分别确认。
+
 #### 回显文件下载
 
 - owning module 为 `jetlinks-web-core`：`Upload/File/index.vue` 通过 Ant Design Upload 的 `itemRender` 扩展列表操作，`File/useFileDownload.ts` 负责地址解析与下载。兼容回显 `UploadFile[]`、文件 ID 和刚上传完成的响应；上传后外层回写 ID 时保留原文件名和响应凭证。列表省略状态时按回显文件处理；上传中、失败、移除、业务失败响应或无法解析地址的文件不显示下载按钮。

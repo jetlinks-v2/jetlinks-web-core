@@ -1,4 +1,5 @@
 {
+  "Upload.File.idle": "上传长时间没有实际进展，请检查网络后重试。",
   "components.ModelConfig.unsavedChangesTitle": "修改尚未保存",
   "components.ModelConfig.unsavedChangesMessage": "是否保存本次修改？丢弃后将恢复编辑前的内容。",
   "components.ModelConfig.discard": "丢弃",

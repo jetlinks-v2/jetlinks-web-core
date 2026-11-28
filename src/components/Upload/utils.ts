@@ -1,13 +1,17 @@
 import { request } from '@jetlinks-web/core'
-import { FileStatic, fileUpload } from '@jetlinks-web-core/api/comm'
+import { FileStatic } from '@jetlinks-web-core/api/comm'
 import type { UploadProps } from 'ant-design-vue'
+import i18n from '@jetlinks-web-core/locales'
 
 type UploadCustomRequest = NonNullable<UploadProps['customRequest']>
 type UploadRequestOptions = Parameters<UploadCustomRequest>[0]
+export interface UploadRequestHandle { abort: () => void }
 
 interface UploadByRequestOptions {
   url?: string
   name?: string
+  /** Long uploads use a progress idle deadline instead of the request's total timeout. */
+  idleTimeout?: number
 }
 
 const getRawFile = (file: UploadRequestOptions['file']) => {
@@ -38,13 +42,13 @@ const appendFormDataValue = (formData: FormData, key: string, value: unknown) =>
   formData.append(key, String(value))
 }
 
-export const createUploadCustomRequest = (config: UploadByRequestOptions = {}): UploadCustomRequest => {
-  return async (options) => {
+export const createUploadCustomRequest = (config: UploadByRequestOptions = {}) => {
+  return (options: UploadRequestOptions): UploadRequestHandle => {
     const rawFile = getRawFile(options.file)
 
     if (!(rawFile instanceof Blob)) {
       options.onError?.(new Error('invalid upload file'))
-      return
+      return { abort() {} }
     }
 
     const formData = new FormData()
@@ -61,15 +65,40 @@ export const createUploadCustomRequest = (config: UploadByRequestOptions = {}): 
       formData.append(fieldName, rawFile)
     }
 
-    try {
-      const response = config.url
-        ? await request.post(config.url, formData)
-        : await fileUpload(formData)
-
-      options.onSuccess?.(response)
-    } catch (error) {
-      options.onError?.(error as Error)
+    const controller = new AbortController()
+    let cancelled = false
+    let loaded = 0
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const clear = () => { if (timer) clearTimeout(timer) }
+    const renew = () => {
+      clear()
+      if (config.idleTimeout) timer = setTimeout(() => {
+        cancelled = true
+        controller.abort()
+        options.onError?.(Object.assign(new Error(String(i18n.global.t('Upload.File.idle'))), { code: 'UPLOAD_IDLE' }))
+      }, config.idleTimeout)
     }
+    renew()
+    void (async () => {
+      try {
+        const transport = {
+          signal: controller.signal,
+          ...(config.idleTimeout ? { timeout: 0 } : {}),
+          onUploadProgress(event: { loaded: number; total?: number }) {
+            if (cancelled) return
+            if (event.loaded > loaded) { loaded = event.loaded; renew() }
+            options.onProgress?.({ ...event, percent: event.total ? Math.min(100, event.loaded / event.total * 100) : undefined })
+          },
+        }
+        const response = config.url
+          ? await request.post(config.url, formData, transport)
+          : await request.post(FileStatic, formData, transport)
+        if (!cancelled) options.onSuccess?.(response)
+      } catch (error) {
+        if (!cancelled) options.onError?.(error as Error)
+      } finally { clear() }
+    })()
+    return { abort() { cancelled = true; clear(); controller.abort() } }
   }
 }
 
