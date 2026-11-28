@@ -1,5 +1,5 @@
 <template>
-  <span ref="rootRef" class="input-editable" :class="[`input-editable--${size}`, { 'input-editable--text': trigger === 'text', 'input-editable--has-action': !!$slots.action, 'input-editable--multiline': textarea }]" :style="textStyle" @focusout="blur">
+  <span ref="rootRef" class="input-editable" :class="[`input-editable--${size}`, { 'input-editable--text': trigger === 'text', 'input-editable--has-action': !!$slots.action, 'input-editable--multiline': textarea, 'input-editable--has-feedback': !!feedback }]" :style="textStyle" @focusout="blur">
     <span class="input-editable__value" :class="{ 'is-editing': isEdit }" :aria-hidden="isEdit || undefined">
       <button v-if="textarea" ref="triggerRef" type="button" class="input-editable__text inline-edit-trigger" :disabled="disabled || isEdit || submitting" :aria-label="label" @click="startEdit"><span class="input-editable__paragraph">{{ _value || placeholder || $t('comm.table.empty') }}</span></button>
         <button v-else ref="triggerRef" type="button" class="input-editable__text inline-edit-trigger" :disabled="disabled || isEdit || submitting" :aria-label="label" @click="startEdit">
@@ -10,6 +10,9 @@
       <a-textarea v-if="textarea" ref="inputRef" v-model:value="_value" :bordered="false" :maxlength="maxLength" :placeholder="placeholder" :disabled="disabled || submitting" :status="currentError ? 'error' : undefined" :aria-label="label" @keydown="keydown" />
       <a-input v-else ref="inputRef" v-model:value="_value" :bordered="false" :size="size" :maxLength="maxLength"
         @press-enter="!$event.isComposing && submit()" @keydown="keydown" :disabled="disabled || submitting" :status="currentError ? 'error' : undefined" :aria-label="label" />
+    </span>
+    <span v-if="feedback" class="input-editable__status" :class="`input-editable__status--${feedback}`" role="img" :aria-label="feedbackText" :title="feedbackText" @mousedown.prevent>
+      <AIcon :type="feedback === 'saving' ? 'LoadingOutlined' : feedback === 'saved' ? 'CheckCircleFilled' : 'EditOutlined'" :spin="feedback === 'saving'" aria-hidden="true" />
     </span>
     <span v-if="$slots.action" class="input-editable__action"><slot name="action" :value="_value" :editing="isEdit" :cancel="() => cancel(false)" /></span>
     <a-button v-else-if="trigger === 'icon'" class="input-editable__action" :class="{ 'input-editable__action--hidden': disabled || isEdit }" type="link"
@@ -40,19 +43,31 @@ const props = withDefaults(defineProps<{
   error?: string
   /** 返回 false 保留编辑态，由调用方提供字段错误。 */
   save?: (value: string) => boolean | Promise<boolean>
-}>(), { value: '', disabled: false, textarea: false, textStyle: () => ({}), size: 'middle', trigger: 'icon', error: '' })
+  saveFeedback?: boolean
+}>(), { value: '', disabled: false, textarea: false, textStyle: () => ({}), size: 'middle', trigger: 'icon', error: '', saveFeedback: false })
 const emit = defineEmits<{ (event: 'update:value' | 'change', value: string): void }>()
 defineSlots<{ action?: (scope: { value: string; editing: boolean; cancel: () => void }) => unknown }>()
 const _value = ref('')
 const isEdit = ref(false)
+const isDirty = computed(() => isEdit.value && _value.value !== props.value)
 const submitting = ref(false)
+const saved = ref(false)
 const failure = ref('')
 const currentError = computed(() => props.error || failure.value)
 const { t } = useI18n()
+const feedback = computed(() => !props.saveFeedback ? '' : submitting.value ? 'saving' : saved.value ? 'saved' : isDirty.value ? 'unsaved' : '')
+const feedbackText = computed(() => feedback.value ? t(`Editable.${feedback.value}`) : '')
 const rootRef = ref<HTMLElement>()
 const inputRef = ref<{ focus(options?: FocusOptions): void }>()
 const triggerRef = ref<HTMLButtonElement>()
 let generation = 0
+let savedTimer: ReturnType<typeof setTimeout> | undefined
+
+function clearSavedFeedback() {
+  if (savedTimer !== undefined) clearTimeout(savedTimer)
+  savedTimer = undefined
+  saved.value = false
+}
 
 function restoreFocus() {
   void nextTick(() => {
@@ -66,6 +81,7 @@ async function startEdit() {
   if (props.disabled || submitting.value || isEdit.value) return
   const version = ++generation
   failure.value = ''
+  clearSavedFeedback()
   _value.value = props.value
   isEdit.value = true
   await nextTick()
@@ -79,16 +95,24 @@ async function submit(returnFocus = true) {
   const version = ++generation
   submitting.value = true
   failure.value = ''
+  const minimumFeedback = props.saveFeedback && props.save
+    ? new Promise<void>(resolve => setTimeout(resolve, 500)) : undefined
   try {
     // Enter 随后可能触发失焦，提交期间只接受首次操作。
     const accepted = props.save ? await props.save(value) : true
+    if (minimumFeedback) await minimumFeedback
     if (version !== generation) return
     if (!accepted) { failure.value = t('Editable.saveFailed'); return }
+    if (props.saveFeedback && props.save) {
+      saved.value = true
+      savedTimer = setTimeout(clearSavedFeedback, 2000)
+    }
     isEdit.value = false
     emit('update:value', value)
     emit('change', value)
     if (returnFocus) restoreFocus()
   } catch {
+    if (minimumFeedback) await minimumFeedback
     if (version === generation) failure.value = t('Editable.saveFailed')
   } finally {
     if (version === generation) { ++generation; submitting.value = false }
@@ -110,6 +134,7 @@ function cancel(returnFocus = true) {
   _value.value = props.value
   isEdit.value = false
   failure.value = ''
+  clearSavedFeedback()
   if (returnFocus) restoreFocus()
 }
 
@@ -129,20 +154,28 @@ function keydown(event: KeyboardEvent) {
 
 watch(() => props.value, value => { _value.value = value }, { immediate: true })
 watch(() => props.disabled, disabled => { if (disabled) cancel(false) })
+watch(() => props.saveFeedback, enabled => { if (!enabled) clearSavedFeedback() })
 watch(_value, () => { failure.value = '' })
-onBeforeUnmount(() => { ++generation })
+onBeforeUnmount(() => { ++generation; clearSavedFeedback() })
 </script>
 
 <style scoped>
-.input-editable { --input-editable-height:32px; position:relative; display:inline-grid; grid-template-columns:minmax(0,auto) 24px; grid-template-rows:var(--input-editable-height); align-items:center; column-gap:var(--space-2,8px); min-width:0; max-width:min(100%,var(--inline-edit-max-width,100%)); font:inherit; vertical-align:middle }
+.input-editable { --input-editable-height:32px; position:relative; display:inline-grid; grid-template-columns:minmax(0,auto) 24px; grid-template-rows:var(--input-editable-height); align-items:center; column-gap:var(--space-2,8px); width:fit-content; min-width:0; max-width:min(100%,var(--inline-edit-max-width,100%)); font:inherit; vertical-align:middle }
 .input-editable--small { --input-editable-height:24px }
 .input-editable--large { --input-editable-height:40px }
 .input-editable--text:not(.input-editable--has-action) { grid-template-columns:minmax(0,auto) }
-.input-editable__value { display:flex; align-items:center; min-width:0; height:100%; overflow:hidden; white-space:pre }
+.input-editable__value { grid-area:1/1; display:flex; align-items:center; min-width:0; height:100%; overflow:hidden; white-space:pre }
 .input-editable__value.is-editing { visibility:hidden }
+.input-editable--has-feedback:not(.input-editable--multiline) .input-editable__value::after { content:''; flex:0 0 20px }
+.input-editable__status { grid-area:1/1; justify-self:end; align-self:start; z-index:1; display:inline-flex; align-items:center; height:var(--input-editable-height); margin-inline-end:4px; color:var(--jet-theme-primary); font-size:12px }
+.input-editable__status--saved { color:var(--success,var(--jet-theme-success)); animation:input-editable-saved .22s ease-out, input-editable-saved-hide .2s ease-in 1.8s forwards }
+@keyframes input-editable-saved { from { opacity:0; transform:scale(.6) } 70% { opacity:1; transform:scale(1.15) } to { opacity:1; transform:scale(1) } }
+@keyframes input-editable-saved-hide { to { opacity:0 } }
+@media (prefers-reduced-motion:reduce) { .input-editable__status--saved,.input-editable__status :deep(.anticon-spin) { animation:none } }
 .input-editable__control { position:absolute; inset:0 32px auto 0; height:var(--input-editable-height); max-width:calc(100% - 32px) }
 .input-editable--text:not(.input-editable--has-action) .input-editable__control { right:0; max-width:100% }
 .input-editable :deep(.ant-input) { min-width:0; width:100%; height:100%; font:inherit; padding:0; border:0; border-radius:0; box-shadow:none }
+.input-editable--has-feedback :deep(.ant-input) { padding-inline-end:20px }
 .input-editable__text { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0; border:0; background:transparent; font:inherit; color:inherit; text-align:start; cursor:pointer }
 .input-editable__text:disabled { cursor:default }
 .input-editable__text:focus-visible { outline:2px solid var(--jet-theme-primary); outline-offset:3px }
