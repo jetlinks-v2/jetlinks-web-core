@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { detail } from '@jetlinks-web-core/api/system/user'
 import { tabList } from "@jetlinks-web-core/views/account/center/data";
-import { LocalStore } from '@jetlinks-web/utils'
+import { getToken, LocalStore } from '@jetlinks-web/utils'
+import { onScopeDispose } from 'vue'
 import { pick } from 'lodash-es'
 
 export interface UserInfo {
@@ -40,6 +41,15 @@ export interface UserInfo {
 }
 
 export const useUserStore = defineStore('user', () => {
+  let sessionVersion = 0
+  let sessionToken = getToken()
+  if (typeof window !== 'undefined') {
+    const synchronizeSession = () => {
+      if (sessionToken !== getToken()) window.location.reload()
+    }
+    window.addEventListener('storage', synchronizeSession)
+    onScopeDispose(() => window.removeEventListener('storage', synchronizeSession))
+  }
   const userInfo = ref<Partial<UserInfo>>({})
   const isAdmin = ref(false)
   const isApplicationUser = ref(false)
@@ -57,6 +67,7 @@ export const useUserStore = defineStore('user', () => {
    * @param data
    */
   const setUserInfo = (data: Partial<UserInfo>) => {
+    sessionToken = getToken()
     userInfo.value = data
   }
 
@@ -64,7 +75,10 @@ export const useUserStore = defineStore('user', () => {
    * 获取用户信息
    */
   const getUserInfo = async () => {
+    const token = getToken()
+    const version = sessionVersion
     const resp = await detail()
+    if (token !== getToken() || version !== sessionVersion) return
     if (resp.success) {
       const userInfo = pick(resp.result, ['id', 'username', 'name', 'avatar'])
       setUserInfo(resp.result)
@@ -79,7 +93,8 @@ export const useUserStore = defineStore('user', () => {
   }
 
   const init = () => {
-    userInfo.value = {}
+    sessionVersion++
+    setUserInfo({})
     isAdmin.value = false
     isApplicationUser.value = false
     tabKey.value = tabList?.[0]?.key || 'HomeView'

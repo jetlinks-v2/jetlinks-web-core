@@ -98,7 +98,8 @@ const fixtures = {
     export const isAiClientToolSilentRequest = () => false
     export const getPackageConfig = () => ({})
   `,
-  '@jetlinks-web-core/utils/modules': `export const modules = () => ({})`,
+  '@jetlinks-web-core/utils/menuLocale': `export const getMenuLocaleText = (item, field) => item[field]`,
+  '@jetlinks-web-core/utils/modules': `export const modules = () => ({}); export const getModulesMenu = () => [];`,
   '@jetlinks-web-core/utils/module-registry': `export const moduleRegistry = { getPackageConfig: () => ({}) }`,
   '@jetlinks-web-core/store/verify': `export const useVerifyStore = () => ({})`,
   '@jetlinks-web-core/store/application': `
@@ -189,6 +190,8 @@ const bundle = async (environment, runtimeScope = 'project', subApp = false) => 
           if (args.path.endsWith('.vue')) return { path: args.path, namespace: 'fixture' }
           let key = args.path
           if (key.startsWith('@/')) key = `@jetlinks-web-core/${key.slice(2)}`
+          if (args.path === './menuLocale') key = '@jetlinks-web-core/utils/menuLocale'
+          if (args.path === '../utils/modules') key = '@jetlinks-web-core/utils/modules'
           if (args.path === './application' && importer.includes('/store/')) key = '@jetlinks-web-core/store/application'
           if (args.path === './globModules' && importer.endsWith('/router/index.ts')) key = '@jetlinks-web-core/router/globModules'
           if (args.path === './basic' && importer.endsWith('/router/coreRoutes.ts')) key = 'basic-routes'
@@ -802,6 +805,24 @@ try {
     assert.equal(api.context.getRequestHeaders()[api.scope.APPLICATION_SCOPE_HEADER], undefined)
     await api.useMenuStore().queryMenus()
     assert.equal(globalThis.__applicationRuntimeTest.requests.at(-1).headers[api.scope.APPLICATION_SCOPE_HEADER], undefined)
+    scenarios++
+  }
+
+  // 公开企业授权页需先显示；标记不能让受保护路由绕过会话初始化。
+  {
+    const api = await bundle('saas', 'tenant')
+    reset(api, 'http://localhost:9100/#/')
+    const state = globalThis.__applicationRuntimeTest
+    state.user.userInfo = {}
+    let bootstraps = 0
+    state.user.getUserInfo = async () => { bootstraps++; state.user.userInfo = { id: 'user' } }
+    api.router.addRoute({ path: '/enterprise-public-test', name: 'enterprise-public-test', component: {}, meta: { security: 'public', deferSessionBootstrap: true } })
+    await api.router.push('/enterprise-public-test')
+    assert.equal(api.router.currentRoute.value.path, '/enterprise-public-test')
+    assert.equal(bootstraps, 0, 'public intermediary must not bootstrap before it renders')
+    api.router.addRoute({ path: '/enterprise-private-test', name: 'enterprise-private-test', component: {}, meta: { security: 'authenticated', deferSessionBootstrap: true, skipMenuFetch: true } })
+    await api.router.push('/enterprise-private-test')
+    assert.equal(bootstraps, 1, 'private route must still bootstrap')
     scenarios++
   }
 
