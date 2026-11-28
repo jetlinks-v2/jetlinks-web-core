@@ -1,4 +1,5 @@
 {
+  "Upload.File.idle": "アップロードが進んでいません。接続を確認して再試行してください。",
   "app.resourceLoadError.title": "ページを再読み込みしてください",
   "app.resourceLoadError.content": "ページの読み込みに失敗しました。システムが更新された可能性があります。続行するにはページを再読み込みしてください。\n注意：再読み込みすると、保存されていない内容は失われます！",
   "app.resourceLoadError.refresh": "再読み込み",

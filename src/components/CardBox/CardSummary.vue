@@ -239,7 +239,7 @@ const handleClick = (event: MouseEvent | KeyboardEvent) => {
   display: flex;
   align-items: center;
   margin: auto calc(var(--panel-padding, var(--space-4)) * -1) 0;
-  padding: var(--panel-padding, var(--space-4));
+  padding: var(--card-summary-footer-padding, var(--panel-padding, var(--space-4)));
   border-top: var(--jet-theme-stroke-width) solid var(--line);
   gap: var(--panel-gap, var(--space-4));
 }
