@@ -90,9 +90,7 @@ export const createUploadCustomRequest = (config: UploadByRequestOptions = {}) =
             options.onProgress?.({ ...event, percent: event.total ? Math.min(100, event.loaded / event.total * 100) : undefined })
           },
         }
-        const response = config.url
-          ? await request.post(config.url, formData, transport)
-          : await request.post(FileStatic, formData, transport)
+        const response = await request.post(config.url || FileStatic, formData, transport)
         if (!cancelled) options.onSuccess?.(response)
       } catch (error) {
         if (!cancelled) options.onError?.(error as Error)
@@ -106,5 +104,5 @@ export const uploadByRequest = createUploadCustomRequest()
 
 export const createFileUploadCustomRequest = (publicAccess?: boolean) =>
   createUploadCustomRequest({
-    url: publicAccess ? FileStatic : `${FileStatic}?options=publicAccess`
+    url: publicAccess ? `${FileStatic}?options=publicAccess` : FileStatic
   })

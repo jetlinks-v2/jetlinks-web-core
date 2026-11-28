@@ -65,3 +65,13 @@ test('ordinary uploads preserve the platform URL and default total-timeout polic
   calls[0].resolve({ result: { id: 'file' } }); await flush()
   assert.equal(response.result.id, 'file')
 })
+
+test('public file access is opt-in and the flag matches its request option', async t => {
+  const { createFileUploadCustomRequest, calls } = setup(t)
+  for (const publicAccess of [undefined, false, true]) {
+    createFileUploadCustomRequest(publicAccess)(options())
+    const call = calls.at(-1)
+    assert.equal(call.url, publicAccess ? '/file/upload?options=publicAccess' : '/file/upload')
+    call.resolve({ result: { id: 'file' } }); await flush()
+  }
+})
